@@ -267,3 +267,12 @@ test('渲染冒烟：竖条与设置页组件能被调用而不抛错', () => {
   const page = client.QuickActionsSettings({ text: (key) => key })
   assert.ok(page !== null && typeof page === 'object', '设置页要能渲染出元素')
 })
+
+test('导入：接受 { buttons } 与裸数组，坏文件返回 null', () => {
+  const { parseQuickActionsFile } = loadClient()
+  assert.deepEqual(parseQuickActionsFile('{"buttons":[{"id":"a","value":"v"}]}').map((b) => b.id), ['a'])
+  assert.deepEqual(parseQuickActionsFile('[{"id":"b","value":"w"}]').map((b) => b.id), ['b'])
+  assert.equal(parseQuickActionsFile('{ not json'), null)
+  assert.equal(parseQuickActionsFile('{"buttons":[]}'), null, '空的导入等于没内容')
+  assert.equal(parseQuickActionsFile('{"buttons":"nope"}'), null)
+})
