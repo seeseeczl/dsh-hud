@@ -223,3 +223,24 @@ D 的代价是要量 DOM 定位（`_sidebarCol` 的 class 是哈希前缀，官�
 代价：配置只在本机这个浏览器里，换机器或清缓存会回到内置默认 —— 因此提供
 **导出 / 导入 JSON**（导出下载 `dsh-sym-quick-actions.json`，导入接受 `{ buttons }` 与裸数组，
 导入后点保存生效）。
+
+## 8. 余额（account-balance）的位置结论
+
+余额挂在 `sidebar.footer.action`（设置按钮旁），**参与布局**，不做浮层定位。
+
+试过并否决的路线：
+
+- **侧栏顶部那块空白**（"后台任务"行与搜索框之间）：**没有可挂的槽**。`sidebar.workspaces`
+  是 single 型，挂进去会顶掉整个会话浏览区；`sidebar`（整列）同理。
+- **浮层定位**（`position: fixed` + 量侧栏列 / 聊天面板列）：侧栏祖先链上有 transform 之类的
+  属性，fixed 会相对那个祖先定位而不是视口，位置会落到看不见的地方。按哈希类名
+  （`_sidebarCol` / `_centerCol`）也认不出容器 —— 余额的 DOM 祖先里没有这些类名。
+- **输入框下方的 composer dock**：能渲染，但与 stats / 花费读数挤在一行，用户否决。
+
+"闪"的三个原因（都与位置无关）已分别修掉：
+
+1. 取数失败会把状态清成 `unavailable`、组件随即 `return null` —— 元素消失。改为保留最近一次
+   成功的数值并标记 `stale`（变淡显示）。
+2. 曾经有一条 `[class*="_footArea"]:has([data-account-balance])` 规则去改官方 footer 的 flex
+   布局；余额一消失这条规则就失效、官方布局瞬间弹回。整条已删除。
+3. 元素参与布局时宽度变化会推动兄弟元素；现在数值位数稳定、且不再消失。

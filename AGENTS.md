@@ -245,3 +245,14 @@ namespaces: [...] } }`，且 descriptor 里的 `schema` 是 schemastery 内部�
 常驻 UI 要挂会话头部这类槽（`conversation.session.header.utilities`）。
 元素本身是 `position: fixed` 时，挂哪个槽都不影响视觉位置，所以**常驻性是选槽的首要标准**，
 不是位置。
+
+**往侧栏加东西：没有位置可挑，且不要用浮层定位**。
+
+- 可挂的槽只有 `sidebar.footer.action`（设置按钮旁）与 `sidebar.panellist`（面板图标）这类
+  list 槽。侧栏顶部那块空白（"后台任务"行与搜索框之间）**没有槽**：`sidebar.workspaces`
+  是 single 型，挂进去会把整个会话浏览区顶掉，`sidebar`（整列）同理。
+- 侧栏祖先链上有 transform 之类的属性，`position: fixed` 会相对那个祖先定位，而不是视口 ——
+  于是 `left:8px; top:56px` 会落到看不见的地方。**侧栏内的元素一律参与布局**，
+  不要做浮层定位。
+- 同理，按哈希类名定位（`_sidebarCol` / `_centerCol`）在这里也不成立：余额的 DOM 祖先里
+  并没有这些类名。位置相关的假设，先查槽、再查 CSS 上下文，别直接猜类名。
