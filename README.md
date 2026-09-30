@@ -149,18 +149,19 @@
 ### 方式一：让 DSH 装（推荐）
 
 ```bash
-# npm 包（如果已发布）
-dsh plugin --profile desktop add dsh-sym
+# 从 GitHub 装（推荐）
+dsh plugin --profile desktop add github:seeseeczl/dsh-sym
 
-# 本地目录
-dsh plugin --profile desktop add /绝对路径/dsh-sym
-
-# tarball
+# 从 Release 附件里的 tarball
 dsh plugin --profile desktop add /绝对路径/dsh-sym-1.0.0.tgz
 
-# 或从 git
-dsh plugin --profile desktop add github:seeseeczl/dsh-sym
+# 从本地目录
+dsh plugin --profile desktop add /绝对路径/dsh-sym
 ```
+
+> 本包**没有发布到 npm**：它是零依赖、无构建步骤的纯 JavaScript，从 git 或 tarball
+> 安装与从 npm 安装没有区别。npm 上确实有一个叫 `dsh-hud` 的同类包（另一个作者的项目），
+> 与本项目无关。
 
 也可以在 GUI 里走「设置 → 插件 → 安装」。
 
@@ -170,7 +171,7 @@ dsh plugin --profile desktop add github:seeseeczl/dsh-sym
 
 ```yaml
 - id: sym-cost
-  name: 'file:///绝对路径/dsh-sym/lib/host-v4.js'
+  name: 'file:///绝对路径/dsh-sym/lib/host-v5.js'
 ```
 
 再在同一个文件末尾确保它是启用的：
@@ -251,7 +252,7 @@ DSH 内置了一份 **pi-ai 价目目录**（42 家厂商、1046 个模型，美
 
 ```
 ┌─ 宿主（Electron 主进程，Cordis 插件树） ─────────────────────┐
-│  lib/host-v4.js                                              │
+│  lib/host-v5.js                                              │
 │   • sessionProjections 注册 sessionCost —— 会话事件的纯折叠   │
 │   • 折叠 request/header、assistant/message、llm/retry-started │
 │   • 只存 token 数（按峰/谷、按轮次、按模型分桶），不存金额     │
@@ -284,7 +285,7 @@ DSH 内置了一份 **pi-ai 价目目录**（42 家厂商、1046 个模型，美
 
 唯一的配置文件是 `lib/prices.json`（见上）。
 
-宿主半边改动（`lib/host-v4.js`）需要**重启 App**；客户端半边（`lib/client.js`）和
+宿主半边改动（`lib/host-v5.js`）需要**重启 App**；客户端半边（`lib/client.js`）和
 `lib/prices.json` 都是**热生效**的。
 
 ---
@@ -294,7 +295,7 @@ DSH 内置了一份 **pi-ai 价目目录**（42 家厂商、1046 个模型，美
 ### 目录
 
 ```
-lib/host-v4.js     宿主半边：投影折叠 + 价目来源 + 引用展开
+lib/host-v5.js     宿主半边：投影折叠 + 价目来源 + 引用展开
 lib/client.js      客户端半边：四处显示 + 峰谷标记
 lib/prices.json    价目覆盖 / 汇率 / 节假日
 cordis.patch.yml   组合包补丁（让 profile 一次性装好）
@@ -308,17 +309,17 @@ cordis.patch.yml   组合包补丁（让 profile 一次性装好）
 |---|---|
 | `lib/client.js` | 客户端插件热更新，页面自动重载该模块 |
 | `lib/prices.json` | 立即生效（宿主按 mtime 检测） |
-| `lib/host-v4.js` | **需要重启 App**，或用「停用 → 换文件名 → 启用」绕开模块缓存 |
+| `lib/host-v5.js` | **需要重启 App**，或用「停用 → 换文件名 → 启用」绕开模块缓存 |
 
 宿主半边改动之所以麻烦，是因为 DSH 的宿主热重载只监听配置与补丁文件，不监听插件代码。
-换一个新的文件名（`host-v4.js` → `host-v5.js`）能拿到一个全新的模块实例，但**必须等旧实例
+换一个新的文件名（`host-v5.js` → `host-v6.js`）能拿到一个全新的模块实例，但**必须等旧实例
 完成 dispose**，否则新旧注册会撞在一起。
 
 ### 测试
 
 仓库不含测试套件（功能以集成验证为主）。开发时的做法：
 
-- **宿主折叠逻辑**：直接 `import` `lib/host-v4.js`，喂构造事件，断言投影状态
+- **宿主折叠逻辑**：直接 `import` `lib/host-v5.js`，喂构造事件，断言投影状态
 - **客户端组件**：用一个最小的 React hooks 运行时（`useState` / `useEffect` / `useRef`）
   直接调用组件函数，断言渲染出的元素树和插入内容
 - **端到端**：`curl` 取页面里 `plugins/??dsh-sym/client.js` 的 bundle，
