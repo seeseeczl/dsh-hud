@@ -12,7 +12,7 @@
 - Profile：`core` + `ui` + `service`
 - 项目根：`~/GitHub/DSH-Sym`（2026-09-30 从 profile 的 `plugins/` 目录搬出；插件仍由
   `~/.dsh/profiles/desktop/cordis.patch.yml` 里的 `file://` 条目挂载，换路径后需重启 App）
-- 当前版本：`1.2.0`（未发布 npm；经 GitHub Release 分发，变更记录见 `CHANGELOG.md`）
+- 当前版本：`1.3.0`（未发布 npm；经 GitHub Release 分发，变更记录见 `CHANGELOG.md`）
 
 ---
 
@@ -77,7 +77,7 @@ Git        干净（0 未提交）· main · git@github.com:seeseeczl/dsh-sym.gi
 |---|---|---|---|
 | FR-01 | 状态栏显示本会话累计花费（人民币），悬停展开逐桶账单 | 已实现 | `client.js` `CostPill` / `describeScope` |
 | FR-02 | 状态栏同一按钮内显示右侧刻度选中那一轮的花费 | 已实现 | 同上（`useActiveTurn` 读取刻度） |
-| FR-03 | 侧边栏账户行右侧显示 DeepSeek 账户余额 | 已实现 | `client.js` `createBalanceCell` |
+| FR-03 | 输入框工具行里、模型选择器左侧显示 DeepSeek 账户余额 | 已实现 | `client.js` `createBalanceCell`（挂 `conversation.input.right`） |
 | FR-04 | 品牌行后显示峰时/谷时状态灯，并按固定边界刷新 | 已实现 | `client.js` `installPeakTag` |
 | FR-05 | 每条回复的动作行提供"引用此回复作为上下文"按钮 | 已实现 | `client.js` `QuoteAction`；宿主 `agent/pre-step` 展开 |
 | FR-06 | 点击花费金额弹出面板：实际支出、谷时省下、峰谷拆分、本次任务 | 已实现 | `client.js` `CostPanel`（缓存省下与「本来要花」已按用户要求移除） |
@@ -91,7 +91,7 @@ Git        干净（0 未提交）· main · git@github.com:seeseeczl/dsh-sym.gi
 | FR | 验收 |
 |---|---|
 | FR-01/02 | 状态栏可见一个按钮，含两个金额；悬停出现账单文本 |
-| FR-03 | 侧边栏账户行右侧出现余额；未登录时**整行不显示**（不是显示 0） |
+| FR-03 | 模型选择器左侧出现余额；读不到时显示 `—` 并**保持占位**（不显示 0，也不让格子忽隐忽现去推挤模型名） |
 | FR-04 | 伪造时钟跨越 09:00/12:00/14:00/18:00/00:00，标记按时翻转；峰时琥珀、谷时绿 |
 | FR-05 | 点击后输入框插入 `@引用#<12位id>`；发送时宿主展开为原文；**点完光标仍在输入框**（快捷按钮同理） |
 | FR-06 | 点击金额弹出面板；点击面板外或 Esc 收起 |
@@ -108,7 +108,7 @@ Git        干净（0 未提交）· main · git@github.com:seeseeczl/dsh-sym.gi
 |---|---|---|
 | NFR-01 | **零运行时依赖**，无构建步骤 | `package.json` 的 dependencies 为空；无 scripts |
 | NFR-02 | **数据不可得时安静退场**，不显示 0 或占位符 | 各组件在无数据时返回 null（已在单测覆盖） |
-| NFR-03 | **插件缺席时官方布局不变** | 余额格的 `:has()` 门控；峰谷标记为 `::after` |
+| NFR-03 | **插件缺席时官方布局不变** | 全部走 list 型插槽加法；峰谷标记为 `::after`；不写任何重排官方布局的规则 |
 | NFR-04 | 视觉跟随主题，不硬编码颜色 | 只用 `--dsw-*` 语义变量（面板曾因猜变量翻车，见 ADR-005） |
 | NFR-05 | 字号/行高与所在行的官方读数一致 | 实测对比通过（12px / 24px / 同色） |
 | NFR-06 | 宿主半边改动不破坏既有会话数据 | 投影 `stateVersion` 变更时注册表拒绝旧 checkpoint 并重建 |
@@ -138,7 +138,7 @@ Git        干净（0 未提交）· main · git@github.com:seeseeczl/dsh-sym.gi
   lib/client.js
     ├─ conversation.composer.dock        ×2  → 花费按钮 + 链接右键菜单
     ├─ conversation.chat.assistant-actions ×2 → 每轮费用 + 引用按钮
-    └─ sidebar.footer.action              ×1  → 账户余额
+    └─ conversation.input.right           ×1  → 账户余额
 ```
 
 ### 5.2 关键取舍

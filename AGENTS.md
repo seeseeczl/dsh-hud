@@ -85,9 +85,11 @@ pickTurn(turns, activeTurn) -> turn | null
 describeScope(scope, t, title) -> string   // 悬停账单的多行文本
 readActiveTurn() -> number | null          // 读右侧刻度当前选中项
 quoteMark(messageId) -> string             // 客户端写出的引用标记（端到端由契约测试守卫）
-registerSlotCell(ctx, name, id, order, component) -> disposer | null
+registerSlotCell(ctx, name, id, order, component, extra?) -> disposer | null
     // ⚠ 同一实例内重复 id 会被**跳过并返回 null**（AUD-OPS-001 的整改）。
     // ⚠ 注册表拒绝时吞掉异常、记录一条降级日志，返回 null——不连累其他插槽。
+    // ⚠ `extra` 合并进注册选项；传 `{ locale: null }` 等于**删掉** locale 字段。
+    //    它是"要不要给条目注入 `t`"的开关，**不控制渲染** —— 见下面「槽的 locale 声明」。
 ```
 
 ### 降级日志（`noteDegrade`）
@@ -210,17 +212,29 @@ registerSlotCell(ctx, name, id, order, component) -> disposer | null
 界面表现是**什么都不发生且没有任何报错**。`sessionCost` 之所以没暴露这个问题，是因为它
 每轮都在变。守卫见 `test/host.test.mjs` 的「state 在首个事件后只变一次」。
 
-**槽的 `locale` 声明决定条目是否被渲染，而且两边规则相反**：
+**槽的 `locale` 声明只决定"给不给条目注入 `t`"，不控制渲染（2026-09-30 查 asar 更正）**：
 
-- owner **投影 locale** 的槽（standardProps 里有 `t`，例如 `conversation.input.dock`、
-  `conversation.composer.dock`）：条目**必须带 `locale: NS`** 注册，去掉就不渲染。
-- owner **不投影 locale** 的槽（例如 `settings.section`、`conversation.session.header.utilities`）：
-  条目**不能带 locale**，要用 `locale: null`（`registerSlotCell` 会删掉该字段），
-  带了就不渲染。
+- 官方 slots 渲染侧的原话（asar 偏移 22565236）：
 
-两种写错的界面表现完全一样：inspect 里 occupant 存在、`active: false`，界面上什么都没有。
-另外这两个"不投影 locale"的槽里拿不到 `t`，文案要么走自己的字典，要么用
-`localeLabel(ctx, key)` 通过 props 传进去。
+  ```js
+  if (entry.locale !== void 0) {
+    const face = host.locale;
+    if (face === void 0) throw new SlotAssemblyError(`entry declares locale namespace '${entry.locale}' but no locale face is installed …`);
+    kit["t"] = localeSeat(face, entry.locale);
+  }
+  ```
+
+  全库 `entry.locale` 只出现在这一个函数里，**渲染路径没有任何基于它的过滤**。
+- 结论：带 `locale: NS` → 条目拿到 `t`（跟随界面语言）；`locale: null`（`registerSlotCell` 会把
+  字段删掉）→ 条目拿不到 `t`，但**照常渲染**。唯一会因 locale 而不渲染的情形是 `host.locale`
+  缺失时抛 `SlotAssemblyError` —— 我们自己在 `apply` 里就 `ctx.locale.register(NS, …)`，不会缺。
+- ⚠ **本节此前写的两条规则都是错的，一并作废**：（a）"owner 投影 locale 的槽，去掉 locale 就
+  不渲染"；（b）"用 standardProps 里有没有 `t` 判断投不投影"。（b）的反例是硬的：
+  `conversation.composer.dock` 与 `conversation.session.header.utilities` 的 standardProps
+  **逐项完全相同**、都没有 `t`，却被记录成相反的两种行为。
+- **实践准则**：默认**带** locale（`registerSlotCell` 的默认值就是 `NS`，不要传
+  `{ locale: null }`，除非你确认这个槽不需要本地化文案且想省掉 `t`）。代价是英文界面下自己的
+  文案会回退内置中文字典 —— `tr()` 在 `t` 不是函数时无条件用 `zh`（见 `lib/client.js` 的 `tr`）。
 
 **`remote` 的 namespace 必须声明注入**：直接 `ctx.get("remote").settings` 会抛
 `cannot get property "remote.settings" without inject`。要用
@@ -244,7 +258,11 @@ namespaces: [...] } }`，且 descriptor 里的 `schema` 是 schemastery 内部�
 
 **选槽先看"会不会被替换掉"**：`conversation.input.dock` 挂在 `conversation.content` 下，
 交互问卷 / 审批把内容区整体替换时它跟着被卸载 —— 界面表现是"弹窗一出来，常驻 UI 就没了"。
-常驻 UI 要挂会话头部这类槽（`conversation.session.header.utilities`）。
+常驻 UI 要挂会话头部这类槽（`conversation.session.header.utilities`）；
+**`conversation.composer.bar`（resident composer body）下面的槽同样常驻** ——
+`input.left` / `input.right` / `input.model` / `input.permission` / `input.plan` /
+`input.activity` 都挂在它下面，问卷/审批替换的是 `conversation.composer`（chain 型），
+不是 `composer.bar`（2026-09-30 余额格改挂 `input.right` 时查明）。
 元素本身是 `position: fixed` 时，挂哪个槽都不影响视觉位置，所以**常驻性是选槽的首要标准**，
 不是位置。
 
@@ -258,25 +276,41 @@ namespaces: [...] } }`，且 descriptor 里的 `schema` 是 schemastery 内部�
   不要做浮层定位。
 - 同理，按哈希类名定位（`_sidebarCol` / `_centerCol`）在这里也不成立：余额的 DOM 祖先里
   并没有这些类名。位置相关的假设，先查槽、再查 CSS 上下文，别直接猜类名。
-- **余额格为什么是 `position: fixed` 却还能用**：它注册在 `sidebar.footer.action`，但它
-  主动量 `_sidebarCol` 的 `getBoundingClientRect()` 再写 `style.right`，所以它按**视口**
-  定位是安全的 —— 只要别在祖先里做别的浮层定位。这条是"量 DOM 写死像素"的例外，
-  不是"侧栏里可以随便用 fixed"。
 
-**余额格的几何是"右边缘 + min-width"一对参数，改一个必须同时改另一个**：
+**余额曾经"借位"，别再走那条路（2026-09-30 的教训）**：
 
-- 数字的横坐标 = 盒子右边缘 − `padding-right` − `.dshBalance_value` 的 `min-width`
-  （左 padding 会被盒子变宽抵消掉，所以它决定不了数字位置）；
-- 定位代码里 `right = (innerWidth − 侧栏右) + 2` ⇒ 盒子右边缘在侧栏右边界**内侧 2px**，
-  热区不再越界；配套把 `min-width` 从 72 降到 60，数字**一格都不动**（只是右边那截
-  看不见的空白缩了 12px）；
-- 反过来：想把数字往右挪，别只改 `+2`，那样热区又出去了。两个数一起按 12px 的比例改。
-  早先那版是 `− 10`（右边缘在侧栏**外** 10px），配 hover 底色时越界一眼可见。
+- 旧实现把余额格注册在**会话头部槽**（`conversation.session.header.utilities`），却用
+  `position: fixed` + 量 `_sidebarCol` 的像素把自己画到**侧栏底部** —— 注册点（会话级，
+  切会话就重挂）与视觉位置（全局）是两套生命周期：每次重挂都要重新测量、命中前重试
+  25 × 200ms，量不到就停在 CSS 默认的视口右下角。**这就是"不稳"的来源。**
+- 为了让这个错位看起来自然，还配了一条**静态**规则把官方 footer 从竖排改成横排
+  （`_footArea` / `_footerActions` / `_settingsArea`）。余额是 fixed、本就脱流，那条规则
+  帮不上它；它唯一的实际效果是把**官方账户行（头像 + 用户名）推到右侧**，用户一眼看出
+  "名字的位置变了"。已删除。
+- 现址：`conversation.input.right`（list 型）。它与**模型选择器同在 `standardControls` 容器**
+  里，官方 JSX 顺序就是 `[input.right][input.model]`，所以余额落在**模型名的正左边**（用户要的
+  "靠右、贴着模型选择"）。它挂在 `conversation.composer.bar`（resident composer body）下 ——
+  问卷/审批替换内容区时不会跟着被卸载（`conversation.input.dock` 会）。位置由官方工具行决定：
+  **零测量、零重试、零改官方布局**。
+  ⚠ 代价一：`standardControls` 带 `hidden={activity}`，而这个 `activity` 来自
+  `conversation.input.activity` 的 occupant —— 官方的**实验性语音输入**（`phase !== "idle"`，
+  见 `VoiceInput` 的 `useLayoutEffect`）。即**录音 / 转写期间**整个容器连同模型选择器一起隐藏，
+  余额跟着隐藏（与模型名同进同退）。官方该槽 ownerProps 的原话是
+  "A toolbar activity hides ordinary accessory controls while expanded"。
+  ⚠ **不是"agent 运行中就隐藏"**（我在会话里口头这么说过，是错的）；未安装那个实验 bundle 时
+  `activity` 恒为 false，永不隐藏。
+  ⚠ 代价二：槽是 `scope: "session"`，而官方同一时刻可以挂多份会话（右侧栏聊天标签
+  `sidebar.chat.conversation`、子代理面板 embedded 渲染 `conversation.content`）——
+  **每份工具行都会出现一个余额**。旧实现是 `position: fixed`，多实例重叠在同一像素上所以
+  看不出来；改成参与布局后重复会显形。
+- 判断口诀：**注册在哪个槽，就渲染在哪个槽**。若非要让 A 槽的元素出现在 B 处，
+  先问"B 处有没有可加的槽"；没有就接受 A 处的位置，**不要用 fixed 去伪造**。
 
-**别用 `:has(我们的元素)` 去改官方布局**：这种规则会随元素**存在与否**而生效/失效 ——
-余额一次取数失败、元素消失，规则立刻失效，官方 footer 弹回竖排，而下次成功又弹回来，
-看起来就是"闪"，而且极难联想到是 CSS 规则在开关。要改官方布局就写**静态**规则
-（我们只在本插件启用时才会加上这些规则，没必要再用 `:has()` 做条件）。
+**别用静态 CSS 规则去改官方布局**：上一版曾写"静态规则比 `:has()` 安全"，这只说对了一半 ——
+静态规则不随元素出现/消失而开关（所以不闪），但它**照样在替官方元素决定位置**。删掉的那条
+`[class*="_footArea"]{flex-direction:row}` 就把官方账户行整块推到了右侧，而它当初的理由
+（"让余额和设置并排"）根本不成立 —— 余额是 `position: fixed`，脱流的元素不需要任何规则帮忙。
+**只有当真要替换官方排版时才动官方 CSS；自己的浮层一律自己定位。**
 
 **往输入框里"放一条指令"要带尾随空格**：客户端把**"命令 + 空格"**认作"指令行、开始收参数"，
 这与从官方 `/` 菜单选中一条指令后的状态一致（如 `/goal` 会提示"输入目标，…"）；只填命令名

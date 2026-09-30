@@ -138,6 +138,10 @@
   修复 / 移除）覆盖 v1.1.0 之后的 95 个提交；版本引用按上面同一份清单同步，并顺手更正了
   `PUBLISHING.md` 里两处过时数字（手动挂载示例的文件名 `host-v3.js` → `host-v12.js`，
   `files` 清单 6 个 → 19 个、tgz 约 200 KB → 约 240 KB）。
+  **2026-10-01 发布（1.3.0）**：`CHANGELOG.md` 新增 `[1.3.0]`（变更 / 修复两段），主线是余额格
+  改挂 `conversation.input.right`（模型选择器正左边）并删掉那条重排官方侧栏 footer 的静态规则；
+  版本引用按上面同一份清单同步（`package.json` / `README.md` / `PUBLISHING.md` /
+  `docs/01-architecture` / `openspec/project.md`）。
 
 ### T-07 节假日表外置与年度更新路径
 
@@ -362,7 +366,7 @@
 |---|---|
 | 换名 | `node scripts/reload-host.mjs --apply`：`lib/host-v6.js` → `lib/host-v12.js`，同步 11 个文件（含仓库外的 profile `cordis.patch.yml`）；`npm test` 31 例仍全绿 |
 | 补丁重载 | HMR 已重新组合 profile：`include:sym-cost` 的 moduleName 为 `file:///…/lib/host-v12.js`，`fiberPhase = active` |
-| 插槽实证（client Slots inspect，真实页面） | `conversation.composer.dock`：`sym-cost`(10)、`link-menu`(20) 与官方 `stats` 并存，均 active<br>`conversation.chat.assistant-actions`：`quote-reference`(20)、`turn-cost`(30) 与官方 `feedback` 并存，均 active<br>`sidebar.footer.action`：`account-balance`(10) 与 `cordis-panel` 并存，均 active |
+| 插槽实证（client Slots inspect，真实页面） | `conversation.composer.dock`：`sym-cost`(10)、`link-menu`(20) 与官方 `stats` 并存，均 active<br>`conversation.chat.assistant-actions`：`quote-reference`(20)、`turn-cost`(30) 与官方 `feedback` 并存，均 active<br>`conversation.input.right`：`account-balance`(20)（同日余额格改动后从 `sidebar.footer.action`(10) 迁来） |
 | **尚未验证** | 状态栏两个金额与账户余额的**实际数值**、品牌行峰谷标记、`@` 引用展开、花费面板内的新 `data-sym-*` 标记——需要人眼看界面；且旧模块仍留在宿主内存，**重启 App 后才算完整验证**（AUD-OPS-002） |
 
 回滚方式（若重启后异常）：`git revert 0d1fd9a` 会把入口名与全部引用还原为 `host-v6.js`，
