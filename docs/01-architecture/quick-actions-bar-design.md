@@ -196,3 +196,30 @@ D 的代价是要量 DOM 定位（`_sidebarCol` 的 class 是哈希前缀，官�
 - 点「执行命令」→ 命令真的执行（不产生模型消息）；命令名写错时给出可见提示
 - 改配置（按 §7 选定形态）→ 生效，且不需要重启 App
 - 与 `todo` / `goal` / `queue` 共存，顺序符合 `order`
+
+## 7. 设置入口与配置存放
+
+**两个入口，同一个编辑器组件**：
+
+| 入口 | 槽 | 注册方式 |
+|---|---|---|
+| 设置 →「快捷按钮」（整页） | `settings.section` | `locale: null` + `label` thunk |
+| 设置 → 插件 →「快捷按钮」（标签页） | `settings.plugins.tab` | 同上 |
+
+两个槽的 owner 都**不投影 locale**，所以都必须用 `locale: null`，文案由 `text` 传入
+（详见 AGENTS.md 里那条"槽的 locale 声明规则"）。
+
+`plugins.bundle.config` / `plugins.row.config` 才是"bundle 自己的配置区"，但它们只对
+**插件管理器安装的 bundle** 生效；本插件是 `file://` 手动挂载的，插件页里没有它的卡片，
+所以改用插件分区的标签页。
+
+**配置存放在浏览器本地**（localStorage，key `dsh-sym.quick-actions`），保存**立即生效**：
+设置页写完广播 `dsh-sym:quick-actions-changed`，竖条收到就重新读取。整条链路不经过宿主，
+也不重载插件。
+
+竖条读取的优先级是 **本机存储 → 宿主投影 → 内置默认**（投影那条来自宿主 Config，作为
+"团队统一默认"的通道保留）。
+
+代价：配置只在本机这个浏览器里，换机器或清缓存会回到内置默认 —— 因此提供
+**导出 / 导入 JSON**（导出下载 `dsh-sym-quick-actions.json`，导入接受 `{ buttons }` 与裸数组，
+导入后点保存生效）。
