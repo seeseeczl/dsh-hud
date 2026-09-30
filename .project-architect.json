@@ -13,7 +13,7 @@
       "role": "投影折叠、三级价目来源、引用展开、进程内存读数",
       "publicContract": ["sessionCost projection (stateVersion 3)", "readProcessMemory()"],
       "changeCost": "high",
-      "changeProcedure": "停用插件 → 复制为新文件名 → 同步 cordis.patch.yml 与 package.json 的 main/exports/files → 启用。直接改动文件名会因宿主模块缓存而不生效。"
+      "changeProcedure": "停用插件 → 换新文件名 → 同步全部引用 → 启用。换名与同步引用走 scripts/reload-host.mjs（默认 dry-run，--apply 才写盘；历史审计产物不改写）；停用/启用与重启必须人工完成。直接改内容或只改文件名都会因宿主模块缓存而不生效。"
     },
     {
       "id": "M-CLIENT",
@@ -25,7 +25,13 @@
         "data-sym-turn-cost",
         "data-sym-memory",
         "data-sym-cost-panel",
-        "data-sym-link-menu"
+        "data-sym-link-menu",
+        "data-sym-quote",
+        "data-sym-tier-spend",
+        "data-sym-cache-saved",
+        "data-sym-offpeak-saved",
+        "data-sym-would-have-cost",
+        "data-sym-move-nudge"
       ],
       "changeCost": "low",
       "changeProcedure": "保存即热更新，无需重启。"
@@ -40,15 +46,6 @@
       "changeProcedure": "按 mtime 即时生效。字段是对用户可见的契约，破坏性变更须走 CR。"
     },
     {
-      "id": "M-MOVE",
-      "path": "lib/move-session.js",
-      "kind": "inert",
-      "role": "会话跨工作区移动（已实现、已用真实数据副本验证、无调用方）",
-      "publicContract": [],
-      "changeCost": "n/a",
-      "note": "阻塞原因见 ADR-003 与附录 A；不得在治理文档中把它计为已交付能力。"
-    },
-    {
       "id": "M-BUNDLE",
       "path": "cordis.patch.yml",
       "kind": "config",
@@ -59,15 +56,24 @@
     }
   ],
 
+  "archivedModules": [
+    {
+      "id": "M-MOVE",
+      "formerPath": "lib/move-session.js",
+      "movedTo": "docs/01-architecture/adr-003-session-move-not-wired.md",
+      "movedAt": "2026-09-30",
+      "reason": "P0-03 处置：FR-10 会话跨工作区移动无任何调用方，且客户端→宿主通道由 dsh-api-remotes 在构建期固定，当前架构下不可接通（ADR-003）。原始 86 行实现完整保留在设计记录里且未改动，日后 DSH 开放通道时可直接接回。由此不再计入生产代码。"
+    }
+  ],
+
   "loc": {
     "$comment": "净新增阈值为任务卡约束：单卡至多 5 个生产文件、净新增至多 300 行。此处记录当前基线，用于判断增长是否异常。",
     "baselineAt": "2026-09-30",
     "byModule": {
-      "M-HOST": 833,
-      "M-CLIENT": 1349,
-      "M-MOVE": 86
+      "M-HOST": 906,
+      "M-CLIENT": 1465
     },
-    "productionTotal": 2268,
+    "productionTotal": 2371,
     "taskLimits": {
       "maxProductionFilesPerTask": 5,
       "maxNetAddedProductionLinesPerTask": 300
@@ -91,6 +97,11 @@
       "format": "@引用#<messageId 去掉连字符后的前 12 位>",
       "rule": "客户端写入、宿主展开，两端必须同步修改。"
     },
+    "crossEndConstants": {
+      "$comment": "两端不能共享模块（客户端为浏览器 module factory，宿主为 Node 模块），故各持一份拷贝。",
+      "constants": ["PROJECTION_KEY", "QUOTE_MARK_PREFIX", "QUOTE_MARK_ID_LENGTH"],
+      "guard": "test/contracts.test.mjs 断言两端常量相等，并用「客户端生成标记 → 宿主展开」做端到端验证。改动任一端必须跑 npm test。"
+    },
     "tierPricing": {
       "rule": "谷时价格为峰时的一半；峰时窗口为北京时间周一至周五 09:00–12:00 与 14:00–18:00，法定节假日除外。只有 peakPriced 的模型参与谷时折扣。"
     }
@@ -102,8 +113,17 @@
     "knownGaps": [
       {
         "id": "GAP-REG",
-        "summary": "回归脚本位于 /tmp/costtest/，未纳入仓库，当前不可重复执行。",
-        "taskCard": "T-08"
+        "summary": "回归脚本原先只在 /tmp/costtest/，未纳入仓库。已于 2026-09-30 关闭。",
+        "taskCard": "T-03/T-04/T-05",
+        "status": "closed",
+        "closedAt": "2026-09-30",
+        "closedBy": "T-03/T-04/T-05 与 ADV-P1-01/ADV-P1-02：仓库内 test/ 三个文件、31 个断言，npm test 全绿。"
+      },
+      {
+        "id": "GAP-RENDER",
+        "summary": "回归只覆盖纯函数：渲染、插槽注册、热更新仍只能人工实测；改动宿主仍必须重启后在真实环境验证。",
+        "taskCard": null,
+        "status": "open"
       },
       {
         "id": "GAP-TOOLING",

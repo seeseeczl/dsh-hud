@@ -186,7 +186,7 @@ dsh plugin --profile desktop add /绝对路径/dsh-sym
 
 ```yaml
 - id: sym-cost
-  name: 'file:///绝对路径/dsh-sym/lib/host-v5.js'
+  name: 'file:///绝对路径/dsh-sym/lib/host-v6.js'
 ```
 
 再在同一个文件末尾确保它是启用的：
@@ -267,7 +267,7 @@ DSH 内置了一份 **pi-ai 价目目录**（42 家厂商、1046 个模型，美
 
 ```
 ┌─ 宿主（Electron 主进程，Cordis 插件树） ─────────────────────┐
-│  lib/host-v5.js                                              │
+│  lib/host-v6.js                                              │
 │   • sessionProjections 注册 sessionCost —— 会话事件的纯折叠   │
 │   • 折叠 request/header、assistant/message、llm/retry-started │
 │   • 只存 token 数（按峰/谷、按轮次、按模型分桶），不存金额     │
@@ -300,7 +300,7 @@ DSH 内置了一份 **pi-ai 价目目录**（42 家厂商、1046 个模型，美
 
 唯一的配置文件是 `lib/prices.json`（见上）。
 
-宿主半边改动（`lib/host-v5.js`）需要**重启 App**；客户端半边（`lib/client.js`）和
+宿主半边改动（`lib/host-v6.js`）需要**重启 App**；客户端半边（`lib/client.js`）和
 `lib/prices.json` 都是**热生效**的。
 
 ---
@@ -310,10 +310,12 @@ DSH 内置了一份 **pi-ai 价目目录**（42 家厂商、1046 个模型，美
 ### 目录
 
 ```
-lib/host-v5.js     宿主半边：投影折叠 + 价目来源 + 引用展开
+lib/host-v6.js     宿主半边：投影折叠 + 价目来源 + 引用展开
 lib/client.js      客户端半边：四处显示 + 峰谷标记
 lib/prices.json    价目覆盖 / 汇率 / 节假日
 cordis.patch.yml   组合包补丁（让 profile 一次性装好）
+test/              仓库内回归（npm test，31 个断言，零依赖）
+scripts/           开发脚本（宿主换名助手 reload-host.mjs）
 ```
 
 两个半边都是**零依赖**的纯 JavaScript（ESM），没有构建步骤，改完直接生效。
@@ -324,21 +326,34 @@ cordis.patch.yml   组合包补丁（让 profile 一次性装好）
 |---|---|
 | `lib/client.js` | 客户端插件热更新，页面自动重载该模块 |
 | `lib/prices.json` | 立即生效（宿主按 mtime 检测） |
-| `lib/host-v5.js` | **需要重启 App**，或用「停用 → 换文件名 → 启用」绕开模块缓存 |
+| `lib/host-v6.js` | **需要重启 App**，或用「停用 → 换文件名 → 启用」绕开模块缓存 |
 
 宿主半边改动之所以麻烦，是因为 DSH 的宿主热重载只监听配置与补丁文件，不监听插件代码。
-换一个新的文件名（`host-v5.js` → `host-v6.js`）能拿到一个全新的模块实例，但**必须等旧实例
-完成 dispose**，否则新旧注册会撞在一起。
+换一个新的文件名（`host-v6.js` → `host-v7.js`）能拿到一个全新的模块实例，但**必须等旧实例
+完成 dispose**，否则新旧注册会撞在一起。换名与同步引用已脚本化：
+
+```bash
+node scripts/reload-host.mjs --dry-run   # 先看会改哪些文件与行
+node scripts/reload-host.mjs --apply     # 真改；停用/启用与重启仍由人完成
+```
 
 ### 测试
 
-仓库不含测试套件（功能以集成验证为主）。开发时的做法：
+仓库内有回归，入口是 `npm test`（等价于 `node --test`，**不要**写成 `node --test test/`，
+Node 24 会把目录当模块解析而失败）：
 
-- **宿主折叠逻辑**：直接 `import` `lib/host-v5.js`，喂构造事件，断言投影状态
-- **客户端组件**：用一个最小的 React hooks 运行时（`useState` / `useEffect` / `useRef`）
-  直接调用组件函数，断言渲染出的元素树和插入内容
-- **端到端**：`curl` 取页面里 `plugins/??dsh-sym/client.js` 的 bundle，
-  确认各项注册都在；再用 CDP 驱动一个 headless 页面点击真实按钮
+| 文件 | 覆盖 |
+|---|---|
+| `test/host.test.mjs` | 峰时边界、周末/节假日、引用展开与未知 id、索引淘汰、价目常量、内存读数、失败路径 |
+| `test/client.test.mjs` | `describeScope` 账单文本（峰谷拆分、两项省钱、未收录模型、flat 厂商）、插槽注册幂等、降级日志 |
+| `test/contracts.test.mjs` | 跨端契约常量两端一致，且客户端写出的引用标记宿主能展开 |
+
+**回归只覆盖纯函数**：渲染、插槽注册的实际效果、热更新仍要人工验证。开发时的其余做法：
+
+- **客户端组件**：`test/helpers/load-client.mjs` 用最小的 React hooks 替身物化模块工厂
+  （不引入 jsdom）；要断言真实渲染仍需 CDP 驱动一个 headless 页面点击真实按钮
+- **端到端**：`curl` 取页面里 `plugins/??dsh-sym/client.js` 的 bundle，确认各项注册都在
+- **降级排查**：控制台搜 `[dsh-sym]`，每个来源只记一条，能看到是哪个可选能力缺席了
 
 ---
 
@@ -348,6 +363,11 @@ cordis.patch.yml   组合包补丁（让 profile 一次性装好）
 - **引用索引是内存里的**，App 重启后重新填充；引用一条已被淘汰的旧回复时标记原样保留。
 - **峰谷判断按北京时间**，用内置节假日表；表过期时节假日会被当成工作日（记得按年更新 `holidays`）。
 - **认不出的模型不计费**，只在悬停账单里标出。
+- **没有「把会话移动到别的工作区」这个功能**。它曾有一份用真实数据副本验证过的实现，
+  但 DSH 在**构建期**就固定了客户端可用的 Remote 命名空间，插件无法新增
+  「界面点一下 → 宿主做一件事」的通道，所以它永远点不到。代码已于 2026-09-30 移入
+  `docs/01-architecture/adr-003-session-move-not-wired.md` 作为设计记录，
+  **不是**已交付能力（ADR-003）。
 - 账户余额那一行的布局用了 CSS `:has()`，需要 Chromium 105+（DSH 自带的远高于此）。
 - 侧边栏收起成 56px 窄栏时，余额不显示（空间不够，官方布局也保持原样）。
 

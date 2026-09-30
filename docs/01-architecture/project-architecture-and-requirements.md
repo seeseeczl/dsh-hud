@@ -83,7 +83,7 @@ Git        干净（0 未提交）· main · git@github.com:seeseeczl/dsh-sym.gi
 | FR-07 | 峰时用量给出"改到谷时可再省多少" | 已实现 | `client.js` `tierSpend` |
 | FR-08 | 状态栏显示 DSH 进程常驻内存（rss） | 已实现 | 宿主 `readProcessMemory` + `client.js` `formatBytes` |
 | FR-09 | 回复中的文件链接支持右键：复制路径、在访达中显示 | 已实现 | `client.js` `LinkContextMenu` |
-| FR-10 | （搁置）会话跨工作区移动 | **未接通** | `lib/move-session.js`，缺客户端→宿主通道 |
+| FR-10 | （搁置）会话跨工作区移动 | **未接通（代码已移出生产模块）** | 设计记录 `docs/01-architecture/adr-003-session-move-not-wired.md`，缺客户端→宿主通道 |
 
 ### 3.1 每条 FR 的验收方式
 
@@ -155,11 +155,14 @@ Git        干净（0 未提交）· main · git@github.com:seeseeczl/dsh-sym.gi
 
 | 文件 | 职责 | 变更代价 |
 |---|---|---|
-| `lib/host-v6.js` | 投影折叠、价目来源、引用展开、内存读数 | **高**：需"停用 → 换文件名 → 启用"或重启 |
+| `lib/host-v6.js` | 投影折叠、价目来源、引用展开、内存读数 | **高**：需"停用 → 换文件名 → 启用"或重启；换名与同步引用用 `scripts/reload-host.mjs` |
 | `lib/client.js` | 四处显示、峰谷标记、花费面板、链接右键菜单 | 低：热更新即生效 |
-| `lib/move-session.js` | 会话跨工作区移动（**未接通**） | 不适用 |
 | `lib/prices.json` | 价目覆盖 / 汇率 / 节假日 | 低：按 mtime 即时生效 |
 | `cordis.patch.yml` | 组合包补丁，使 profile 一次性装好 | 中：改动触发宿主重载 |
+| `test/`、`scripts/` | 仓库内回归（`npm test`）与开发脚本 | 不适用（不计入生产代码） |
+
+> `lib/move-session.js` 已于 2026-09-30（治理审计 P0-03）移出生产代码，
+> 原始实现完整保留在 `docs/01-architecture/adr-003-session-move-not-wired.md`。
 
 ### 6.2 数据边界
 

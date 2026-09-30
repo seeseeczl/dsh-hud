@@ -27,8 +27,9 @@
    （引导到 `ctx.fs` 等 Cordis 服务），而且语义是"定义并运行一个插件"，不是"执行一次动作"。
 
 3. **宿主代码不热重载。** 改 `lib/host-v*.js` 后必须走：
-   **停用插件 → 复制为新文件名 → 同步 `cordis.patch.yml` 与 `package.json` 的
-   `main`/`exports`/`files` → 启用**。直接改内容或只改文件名都不会生效（模块缓存）。
+   **停用插件 → 换新文件名 → 同步引用 → 启用**。直接改内容或只改文件名都不会生效（模块缓存）。
+   换名与同步引用已经脚本化：`node scripts/reload-host.mjs --dry-run` 先看要改哪些行，
+   加 `--apply` 才真正改名；脚本**不**碰停用/启用（那两步由人做）。
    每次这样做都会在宿主内存里留下旧模块注册，**重启 App 可清**。
 
 4. **`single` 型插槽是替换，`list` 型才是加法。** 接管 `single` 会丢掉官方行为
@@ -38,6 +39,70 @@
 5. **视觉常量必须先查官方源码。** 面板配色曾因猜测 `--dsw-alias-bg-elevated` 而与官方不一致，
    正确值是 `--dsw-specific-menu`。官方弹层的标准配方：
    `--dsw-specific-menu` + `--dsw-elevation-prominent` + `--dsw-radius-lg` + `--dsw-menu-backdrop-filter`。
+
+## 接口契约（**改动前先读这里**）
+
+**这一节是审计 `AUD-TEST-001`（S1）的整改产物。** 在那次审计中，同一个 AI 在同一会话内
+对下面这些接口**连续误判 6 次**——因为契约此前只存在于实现里。**签名与返回契约以实现为准，
+本节是它的可读副本；发现不一致时先改本节。**
+
+### `lib/host-v6.js`
+
+```js
+isPeakTime(ms, holidays = new Set(DEFAULT_HOLIDAYS)) -> boolean
+    // 峰段：北京时间周一至周五 09:00–12:00、14:00–18:00（含起点、不含终点）
+    // 周末与 holidays 中的日期全天为 false。holidays 是 'YYYY-MM-DD' 字符串集合。
+
+expandQuoteMarks(messages) -> 新批次 | null
+    // ⚠ 无标记、或入参不是数组时返回 null（调用方保留原 decision 对象）。
+    // ⚠ message.content 必须是【块数组】：[{ type:'text', text:'…' }]。
+    //    传字符串会被整条跳过，表现为"没改动"。
+    // ⚠ 只有**成功替换过**才返回新批次；标记的 id 解析不到时返回 null
+    //    （AUD-LOGIC-001 的整改，2026-09-30 落地）。
+
+proseOfMessage(message) -> string | null
+    // ⚠ 入参是【message 对象】，不是 id。
+    // 从 content 中按顺序取 type==='text' 的块，用 '\n\n' 连接；
+    // 忽略 reasoning 与 tool-call 块。无文本块或入参为 null 时返回 null。
+
+rememberProse(id, prose) -> void
+    // 按 id 存入引用索引（重复 id 会先删后插，保持"最新"）。
+    // 上限 QUOTE_INDEX_LIMIT = 400，超出淘汰最旧的。
+
+readProcessMemory() -> { rss, heapUsed } | null
+    // 无 process 时返回 null。
+
+PROJECTION_KEY / QUOTE_MARK_PREFIX / QUOTE_MARK_ID_LENGTH
+    // 跨端契约常量，两端各有一份拷贝（不能共享模块），由
+    // test/contracts.test.mjs 断言两边相等。见下面「公开契约」。
+```
+
+### `lib/client.js`
+
+```js
+formatCny(value) -> string          // 金额文本（货币符号由语言包的 amount 负责）
+pickTurn(turns, activeTurn) -> turn | null
+describeScope(scope, t, title) -> string   // 悬停账单的多行文本
+readActiveTurn() -> number | null          // 读右侧刻度当前选中项
+quoteMark(messageId) -> string             // 客户端写出的引用标记（端到端由契约测试守卫）
+registerSlotCell(ctx, name, id, order, component) -> disposer | null
+    // ⚠ 同一实例内重复 id 会被**跳过并返回 null**（AUD-OPS-001 的整改）。
+    // ⚠ 注册表拒绝时吞掉异常、记录一条降级日志，返回 null——不连累其他插槽。
+```
+
+### 降级日志（`noteDegrade`）
+
+两端各有一个 `noteDegrade(where, detail)`：把"安静退场"的原因写到控制台，
+**每个来源只记一次**（上限 40 条），所以不会随渲染刷屏。
+看到 `[dsh-sym] <where> 降级：…` 就是某个可选能力主动缺席了，不是崩溃。
+宿主侧唯一不记的情况是 `prices.json` 不存在（ENOENT）——那是正常态。
+
+### 两个容易搞错的语义
+
+1. **`null` 不是 `undefined`**：本项目一律用 `null` 表示"没有/无变化/不可用"。
+   写断言时用 `assert.equal(x, null)`，不要写 `undefined`。
+2. **"无变化返回 null" 是有意设计**，不是偷懒：让调用方保留原对象、避免无谓拷贝。
+   见到 `null` 时**不要**当成错误。
 
 ## 汇报产物的格式（用户明确要求过）
 
@@ -66,6 +131,20 @@
 | `lib/prices.json` 字段 | 对用户可见 | `usdToCny` / `holidays` / `models`，破坏性变更需 CR |
 | `data-sym-*` DOM 属性 | 供验证脚本定位 | **非稳定 API**，可改但需同步测试 |
 
+### 跨端契约的单一事实源（AUD-ARCH-001 的整改，2026-09-30）
+
+两端**不能共享模块**（客户端是浏览器 module factory，宿主是 Node 模块），所以
+`PROJECTION_KEY`、`QUOTE_MARK_PREFIX`、`QUOTE_MARK_ID_LENGTH` 在两端各有一份拷贝：
+
+| 常量 | 宿主 | 客户端 |
+|---|---|---|
+| `PROJECTION_KEY` | `lib/host-v6.js` 顶部 | `lib/client.js` 的 contract 区 |
+| `QUOTE_MARK_PREFIX` / `QUOTE_MARK_ID_LENGTH` | 同上 | 同上 |
+
+**守卫在 `test/contracts.test.mjs`**：它断言两边相等，并用"客户端生成标记 → 宿主展开"
+证明两端真的对得上。**改任何一端都要跑 `npm test`**——失配不会报错，只会表现为
+数据不显示或引用不展开。
+
 ## 代码约束
 
 - **零依赖、无构建步骤。** 不要引入 dependencies、打包器或转译。平台模块（`react`、
@@ -82,8 +161,12 @@
 - **不落盘、未验证的产物不得宣称完成。** 说"做好了"必须附实测证据。
 - 改动客户端 → 需要可复现验证；改动宿主 → **必须在真实运行环境验证**（只跑单测不算）。
 - 报告要区分**已验证 / 推断 / 未验证**；没验证的明说没验证。
-- ⚠️ **当前没有仓库内回归**（断言的旧脚本在 `/tmp`，未纳入仓库）——这是已知最大缺口，
-  见任务卡 T-03~T-05。在补齐之前，任何改动都要靠手工实测，**并在回复中说明这一点**。
+- **仓库内回归已建立**（2026-09-30，任务卡 T-03/T-04/T-05 与 ADV-P1-01/02）：
+  入口是 `npm test`（即 `node --test`），三个文件
+  `test/host.test.mjs`、`test/client.test.mjs`、`test/contracts.test.mjs`，
+  共 31 个断言，零依赖。**注意 `node --test test/` 在 Node 24 下会被当成模块路径而失败，
+  用不带参数的 `node --test`。**
+- 但**回归只覆盖纯函数**：渲染、插槽注册、热更新仍要人工实测，改动宿主仍必须重启验证。
 
 ## 治理产物
 
