@@ -214,27 +214,8 @@ test('quickButtonsOf：只保留能寻址的按钮，其余丢弃', () => {
   assert.equal(kept[0].kind, 'command')
 })
 
-test('设置页：从 describe() 的结果里按 schema 结构认出本插件的配置项', () => {
-  const { findQuickActionsDescriptor } = loadClient()
-  const descriptors = [
-    { ns: 'other', schema: { properties: { foo: {} } }, value: {} },
-    { ns: 'sym', revision: 7, schema: { properties: { enabled: {}, buttons: {} } }, value: { enabled: true, buttons: [] } },
-  ]
-  const found = findQuickActionsDescriptor(descriptors)
-  assert.equal(found.ns, 'sym')
-  assert.equal(found.revision, 7)
-  assert.deepEqual(found.value, { enabled: true, buttons: [] })
-  assert.equal(findQuickActionsDescriptor([]), null)
-  assert.equal(findQuickActionsDescriptor(null), null)
-  assert.equal(findQuickActionsDescriptor([{ ns: 'x', schema: { properties: { buttons: {} } } }]), null,
-    '只有 buttons 不算，必须 enabled 与 buttons 同时声明')
-})
-
 test('设置页：配置值与编辑草稿之间的转换', () => {
-  const { quickButtonsFromValue, toConfigButton } = loadClient()
-  assert.equal(quickButtonsFromValue(null), null)
-  assert.equal(quickButtonsFromValue({}), null)
-  assert.deepEqual(quickButtonsFromValue({ buttons: [] }), [])
+  const { toConfigButton } = loadClient()
   const config = toConfigButton({ id: 'a', label: 'A', icon: 'search', kind: 'skill', value: 'x', extra: 1 })
   assert.deepEqual(Object.keys(config).sort(), ['icon', 'id', 'kind', 'label', 'value'],
     '只写 schema 声明的字段，别把界面状态写回文件')
@@ -243,49 +224,29 @@ test('设置页：配置值与编辑草稿之间的转换', () => {
   assert.equal(toConfigButton({ kind: 'nope' }).kind, 'prompt')
 })
 
-test('设置页：describe 的返回结构兼容（数组，或包一层）', () => {
-  const { quickDescriptorsOf, findQuickActionsDescriptor } = loadClient()
-  const unit = { schema: { properties: { enabled: {}, buttons: {} } }, value: { buttons: [] } }
-  assert.deepEqual(quickDescriptorsOf([unit]), [unit])
-  assert.deepEqual(quickDescriptorsOf({ namespaces: [unit] }), [unit])
-  assert.deepEqual(quickDescriptorsOf({ entries: [unit] }), [unit])
-  assert.deepEqual(quickDescriptorsOf(null), [])
-  assert.deepEqual(quickDescriptorsOf({ other: 1 }), [])
-  // namespace 字段名也容错
-  const found = findQuickActionsDescriptor([{ namespace: 'x', schema: { properties: { enabled: {}, buttons: {} } } }])
-  assert.equal(found.ns, 'x')
-})
-
-test('设置页：schema 结构认不出时，按 entry id（sym-cost）兜底', () => {
-  const { findQuickActionsDescriptor } = loadClient()
-  // schema 不是我们预期的那种结构（settings 返回的 schema 未必是 JSON Schema）
-  const found = findQuickActionsDescriptor([
-    { ns: 'account', schema: { kind: 'object' }, value: {} },
-    { ns: 'sym-cost', revision: 3, schema: { kind: 'object' }, value: { enabled: true } },
-  ])
-  assert.equal(found.ns, 'sym-cost')
-  assert.equal(found.revision, 3)
-  // 结构认得出来时优先级更高
-  const bySchema = findQuickActionsDescriptor([
-    { ns: 'sym-cost', value: { a: 1 } },
-    { ns: 'other-entry', value: { b: 2 }, schema: { properties: { enabled: {}, buttons: {} } } },
-  ])
-  assert.equal(bySchema.ns, 'other-entry')
-})
-
-test('设置页：describe 返回 { ok, value } 包装时也能取出 descriptor', () => {
-  const { quickDescriptorsOf } = loadClient()
-  const unit = { ns: 'sym-cost', schema: { properties: { enabled: {}, buttons: {} } }, value: {} }
-  assert.deepEqual(quickDescriptorsOf({ ok: true, value: [unit] }), [unit])
-  assert.deepEqual(quickDescriptorsOf({ value: [unit] }), [unit])
-  assert.deepEqual(quickDescriptorsOf({ data: [unit] }), [unit])
-})
-
-test('设置页：describe 的两层包装（ok → value → namespaces）也能取到', () => {
-  const { quickDescriptorsOf, findQuickActionsDescriptor } = loadClient()
-  const unit = { ns: 'sym-cost', revision: 1, schema: { uid: 1, refs: {} }, value: {} }
-  const wrapped = { ok: true, value: { writable: true, hasDocument: true, namespaces: [unit] } }
-  assert.deepEqual(quickDescriptorsOf(wrapped), [unit])
-  assert.equal(findQuickActionsDescriptor(quickDescriptorsOf(wrapped)).ns, 'sym-cost',
-    'schema 是 schemastery 形式（uid/refs），认不出结构时要靠 ns 兜底')
+test('快捷按钮：配置存在本地，读不出来时回落默认', () => {
+  const { readStoredQuickActions, writeStoredQuickActions } = loadClient()
+  const saved = globalThis.localStorage
+  const store = new Map()
+  globalThis.localStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => { store.set(k, String(v)) },
+    removeItem: (k) => { store.delete(k) },
+  }
+  try {
+    assert.equal(readStoredQuickActions(), null, '没配过时返回 null')
+    assert.equal(writeStoredQuickActions([{ id: 'a', value: 'v' }], true), true)
+    const stored = readStoredQuickActions()
+    assert.deepEqual(stored.buttons.map((b) => b.id), ['a'])
+    assert.equal(stored.enabled, true)
+    // 清掉（传 null）＝ 恢复内置默认
+    writeStoredQuickActions(null, true)
+    assert.equal(readStoredQuickActions(), null)
+    // 坏了的值不能让界面炸掉
+    store.set('dsh-sym.quick-actions', '{ not json')
+    assert.equal(readStoredQuickActions(), null)
+  } finally {
+    if (saved === undefined) delete globalThis.localStorage
+    else globalThis.localStorage = saved
+  }
 })

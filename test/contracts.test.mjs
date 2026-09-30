@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   PROJECTION_KEY, QUOTE_MARK_PREFIX, QUOTE_MARK_ID_LENGTH, QUICK_ACTIONS_KEY,
   DEFAULT_QUICK_ACTIONS, sessionCostProjection, rememberProse, expandQuoteMarks,
-} from '../lib/host-v10.js'
+} from '../lib/host-v11.js'
 import { loadClient } from './helpers/load-client.mjs'
 
 /**
