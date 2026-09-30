@@ -348,6 +348,18 @@
 > 注意：宿主侧改动（ADV-P2-01、P2-01 的宿主那一半）**只在源码里**。宿主代码不热重载，
 > 必须换文件名 + 停用/启用插件 + 重启 App 才会真正生效并得到运行环境验证。
 
+**宿主换名与运行环境验证（2026-09-30 晚，同一会话）**：
+
+| 步骤 | 结果 |
+|---|---|
+| 换名 | `node scripts/reload-host.mjs --apply`：`lib/host-v6.js` → `lib/host-v7.js`，同步 11 个文件（含仓库外的 profile `cordis.patch.yml`）；`npm test` 31 例仍全绿 |
+| 补丁重载 | HMR 已重新组合 profile：`include:sym-cost` 的 moduleName 为 `file:///…/lib/host-v7.js`，`fiberPhase = active` |
+| 插槽实证（client Slots inspect，真实页面） | `conversation.composer.dock`：`sym-cost`(10)、`link-menu`(20) 与官方 `stats` 并存，均 active<br>`conversation.chat.assistant-actions`：`quote-reference`(20)、`turn-cost`(30) 与官方 `feedback` 并存，均 active<br>`sidebar.footer.action`：`account-balance`(10) 与 `cordis-panel` 并存，均 active |
+| **尚未验证** | 状态栏两个金额与账户余额的**实际数值**、品牌行峰谷标记、`@` 引用展开、花费面板内的新 `data-sym-*` 标记——需要人眼看界面；且旧模块仍留在宿主内存，**重启 App 后才算完整验证**（AUD-OPS-002） |
+
+回滚方式（若重启后异常）：`git revert 0d1fd9a` 会把入口名与全部引用还原为 `host-v6.js`，
+再按同样流程换名/重启；或在补丁里把 `sym-cost` 条目改回旧文件名。
+
 **接续方式**：新会话直接读本文件与 `docs/05-audits/2026-09-30-184612-*`、
 `adversarial-audits/2026-09-30-185044-*` 三份产物即可，**不需要读旧对话**。
 
