@@ -20,20 +20,32 @@
 
 **最终形态：侧栏右缝里的竖排图标条（候选 D）。**
 
-实现上它是两件事的组合：
+实现上它是三件事的组合：
 
-- **注册**仍在会话作用域的 `conversation.input.dock` —— 只有会话作用域才拿得到
-  `inputActions`、`sessionId`、`useProjection`（`shell.overlay` 是 root 作用域，没有这些）。
+- **注册**在**会话头部**的 `conversation.session.header.utilities` —— 会话作用域、整个会话
+  常驻，且 standard props 齐全（`inputActions`、`sessionId`、`useProjection`）。
 - **元素**是 `position: fixed`，横向定位到侧栏列的右边缘 +5px（避开官方那 8px 拖拽手柄的
-  右半），纵向居中。它**完全脱离文档流**，所以既不占 dock 的位置，也不会挤走任何人。
+  右半），纵向居中。它**完全脱离文档流**，所以既不占槽位、也不会挤进头部那排官方工具图标。
+- **位置跟随时直接写 `style.left`**（见下面的"跟随"一行），不经过 React state。
 
 | 项 | 实测值 |
 |---|---|
-| 注册槽位 | `conversation.input.dock`（list，session scope） |
+| 注册槽位 | `conversation.session.header.utilities`（list，session scope） |
 | 该槽 standard props | 含 `inputActions`、`useInput`、`useProjection`、`useChat`、`sessionId` |
-| 同槽其他占用者 | `todo`(0) · `goal`(10) · `queue`(20)（我们的元素是 fixed，不参与堆叠） |
+| 同槽其他占用者 | `open-in-app`(-10) · `schedule-catalog`(-5) · `session-log-download`(0)（我们的元素是 fixed，不参与排布） |
 | 定位依据 | `document.querySelector('[class*="_sidebarCol"]').getBoundingClientRect().right` |
-| 跟随 | `ResizeObserver`（侧栏折叠/拖动改宽）+ `window resize` |
+| 跟随 | `ResizeObserver`（侧栏折叠/拖动改宽）+ `window resize`，回调里**直接改 `style.left`** |
+
+### 三个实机踩出来的坑（都在 2026-09-30）
+
+1. **注册在 composer 下会被问卷带走**。`conversation.composer` 是 `chain` 型槽：交互式问卷、
+   审批、计划复核出现时，整个 composer 被替换，挂在其下的 `conversation.input.dock` 条目
+   一并卸载 —— 表现为「问卷一弹出来，竖条就消失」。所以注册点选**会话头部**（常驻）。
+2. **位置不能用 React state 存**。拖动侧栏时每次宽度变化都要在同一帧落到 `left` 上；
+   `setState → 重渲染` 天然慢半拍，表现为"跟随不同步"。改为在 `ResizeObserver` 回调里直接
+   写 `style.left`（该回调在布局后、绘制前，同帧重排）。
+3. **拖动/折叠时侧栏宽度只存在于内联样式里**，只能量 DOM；量不到就 `visibility: hidden`
+   安静退场并记降级日志，不猜位置。
 
 ### 为什么撤掉候选 A（2026-09-30 实机反馈）
 
