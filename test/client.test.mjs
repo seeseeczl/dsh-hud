@@ -310,3 +310,10 @@ test('指令下拉：解析 commands.list 的各种返回形状', () => {
   assert.deepEqual(commandNamesOf(null), [])
   assert.deepEqual(commandNamesOf({ nope: 1 }), [])
 })
+
+test('指令下拉：返回结构更复杂时也能找出命令数组', () => {
+  const { commandNamesOf } = loadClient()
+  assert.deepEqual(commandNamesOf({ ok: true, value: { commands: [{ name: 'compact' }] } }), ['/compact'])
+  assert.deepEqual(commandNamesOf({ value: { items: ['/model'] } }), ['/model'])
+  assert.deepEqual(commandNamesOf({ data: ['/export'] }), ['/export'])
+})
