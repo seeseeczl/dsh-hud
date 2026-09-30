@@ -269,3 +269,19 @@ namespaces: [...] } }`，且 descriptor 里的 `schema` 是 schemastery 内部�
 另外：**菜单选中后的结构化命令 chip 是客户端 slash 流水线的内部结构，插件构造不出来** ——
 插件能做的只有"填入文本 + 空格"这个等效形态。`inputActions` 也只有 `insertText` 与
 `captureInsertion`，没有提交能力，所以"填进去并自动执行"做不到。
+
+**官方 `/` 菜单里的命令分两类，插件能做的完全不同**：
+
+- **宿主命令**（压缩 compact / 权限 permission / 模型 model / 下载日志 export）：可以走
+  `remote.commands.execute(sessionId, line, [])` 直接执行，点一下即生效。
+  注意 agent 参数用 sessionId（与 `execute` 的既有用法一致），并且**必须条件注入**
+  `ctx.inject(["remote", "remote.commands"])` —— 注册那一刻的快照会是 null，要传 getter
+  在点击时现取。
+- **客户端自有命令**（文件 file / 目标 goal / 计划 plan / 反馈 feedback）：README 原文是
+  "贡献项是客户端自有命令…裸调用消费触发 token 后运行回调，不提交消息"。它们**不走宿主**，
+  `commands.execute` 对它们**永远返回 `undefined`**。它们只能由输入框的 `/` 菜单 pick 触发，
+  而那个蓝色 token 是客户端输入框的内部结构 —— `commandUi` 只暴露 `decorate`（给已有命令加
+  装饰），`inputActions` 只有 `insertText` / `captureInsertion`，**没有"以编程方式选中一条
+  命令"的入口**。插件最多只能落下白色文本，视觉上永远比不上菜单 pick 的蓝色 token。
+
+判断办法：填了命令 + 回车看结果，或直接看 `execute` 的返回值是不是 `undefined`。
