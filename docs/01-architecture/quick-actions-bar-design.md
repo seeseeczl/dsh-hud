@@ -226,7 +226,14 @@ D 的代价是要量 DOM 定位（`_sidebarCol` 的 class 是哈希前缀，官�
 
 ## 8. 余额（account-balance）的位置结论
 
-余额挂在 `sidebar.footer.action`（设置按钮旁），**参与布局**，不做浮层定位。
+余额挂在 `sidebar.footer.action`，**就排在侧栏底部"设置"那一行的右侧**：
+靠三条静态规则把官方 footer 改成横排（`_settingsArea` 在左、`_footerActions` 在右）。
+
+这三条规则**不能带 `:has([data-account-balance])`**：带条件的版本会随余额元素存在与否而
+生效/失效，元素一消失官方 footer 就弹回竖排、下次又弹回来 —— 那就是"闪"，而且完全联想不到
+是 CSS 在开关。现在写成静态（永远生效，与元素在不在无关），因此不再闪。
+
+元素本身**参与布局**，不做浮层定位。
 
 试过并否决的路线：
 
