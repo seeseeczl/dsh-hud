@@ -1,0 +1,62 @@
+{
+  "name": "dsh-hud",
+  "version": "1.0.0",
+  "description": "给 DeepSeek Harness 的界面读数层：输入框状态栏的实时会话花费（人民币、按实际厂商/模型与峰谷时段折算）、侧边栏的 DeepSeek 账户余额、品牌行的峰谷时段标记，以及把任意一条回复作为上下文引用的 @ 按钮。",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/host-v4.js",
+  "exports": {
+    ".": {
+      "default": "./lib/host-v4.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/host-v4.js",
+    "lib/client.js",
+    "lib/prices.json",
+    "cordis.patch.yml",
+    "assets",
+    "README.md",
+    "PUBLISHING.md"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-bundle",
+    "deepseek",
+    "deepseek-harness",
+    "cost",
+    "billing",
+    "usage",
+    "balance",
+    "token",
+    "pricing",
+    "hud"
+  ],
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seeseeczl/dsh-hud.git"
+  },
+  "homepage": "https://github.com/seeseeczl/dsh-hud#readme",
+  "bugs": {
+    "url": "https://github.com/seeseeczl/dsh-hud/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
