@@ -255,3 +255,20 @@ test('设置页：describe 的返回结构兼容（数组，或包一层）', ()
   const found = findQuickActionsDescriptor([{ namespace: 'x', schema: { properties: { enabled: {}, buttons: {} } } }])
   assert.equal(found.ns, 'x')
 })
+
+test('设置页：schema 结构认不出时，按 entry id（sym-cost）兜底', () => {
+  const { findQuickActionsDescriptor } = loadClient()
+  // schema 不是我们预期的那种结构（settings 返回的 schema 未必是 JSON Schema）
+  const found = findQuickActionsDescriptor([
+    { ns: 'account', schema: { kind: 'object' }, value: {} },
+    { ns: 'sym-cost', revision: 3, schema: { kind: 'object' }, value: { enabled: true } },
+  ])
+  assert.equal(found.ns, 'sym-cost')
+  assert.equal(found.revision, 3)
+  // 结构认得出来时优先级更高
+  const bySchema = findQuickActionsDescriptor([
+    { ns: 'sym-cost', value: { a: 1 } },
+    { ns: 'other-entry', value: { b: 2 }, schema: { properties: { enabled: {}, buttons: {} } } },
+  ])
+  assert.equal(bySchema.ns, 'other-entry')
+})
