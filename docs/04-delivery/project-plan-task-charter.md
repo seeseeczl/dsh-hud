@@ -210,7 +210,7 @@
 
 ---
 
-### T-13 补齐 project-architect 的 references（8 份）
+### T-13 补齐 project-architect 的 references —— **部分完成（2/8，其余超出本次确认范围）**
 
 - **输入**：`SKILL.md` 第 27、91 行的引用清单；上游文档附录 B
 - **依赖**：无
@@ -224,7 +224,7 @@
 - **回滚**：删除新增的 references 目录
 - **时间线**：待回写
 
-### T-14 补齐 adversarial-audit 与 first-principles 的 references（共 3 份，1 份共用）
+### T-14 补齐 adversarial-audit 与 first-principles 的 references —— **已完成**
 
 - **输入**：两个 `SKILL.md` 的引用清单
 - **依赖**：无
@@ -237,7 +237,7 @@
 - **回滚**：删除新增文件
 - **时间线**：待回写
 
-### T-15 补齐 personal-knowledge-base 的 references（1 份）
+### T-15 补齐 personal-knowledge-base 的 references —— **已完成**
 
 - **输入**：`SKILL.md`（281 行）的引用清单
 - **依赖**：无
@@ -281,6 +281,24 @@
 
 ---
 
+## 4.1 技能附件补齐结果（2026-09-30）
+
+四个 skill 共 11 处附件引用，处理结果：
+
+| skill | 引用数 | 已补 | 备注 |
+|---|---|---|---|
+| `project-architect` | 11 | 2 | 用户确认只补"启动"与"审计流程"两份最关键的 |
+| `adversarial-audit` | 3 | 3 | 其中 `optimization-plan-template.md` 与 first-principles **软链接共用**，避免日后分叉 |
+| `first-principles` | 2 | 2 | |
+| `personal-knowledge-base` | 1 | 1 | 内容依据 Obsidian 知识库的**真实目录结构**写成，非虚构 |
+
+**验证方式**（人工，无脚本）：逐个 skill 用
+`grep -o "\(references\|scripts\|assets\)/[A-Za-z0-9._/-]*\.\(md\|py\)" SKILL.md`
+提取引用后逐条 `test -r`，三个 skill 已无断链。
+
+**未补部分的处置**：`project-architect` 剩余 6 份 references 与 3 个 scripts **在本任务书中保持未完成状态**，
+其"无脚本校验"的后果已在 `SKILL.md` 对应的产物中如实标注。
+
 ## 5. 审计计划
 
 - **下次审计**：M1 里程碑达成后（T-03~T-05 完成）。
@@ -298,6 +316,10 @@
 | 日期 | 任务卡 | 事件 |
 |---|---|---|
 | 2026-09-30 | —— | 治理基线建立（上游文档 + 本文件 + `.project-architect.json`） |
+| 2026-09-30 | —— | 接通 OpenSpec（`openspec/`）；补审计模板（`assets/audit/`）；CodeGraph 走 `rg` 降级 |
+| 2026-09-30 | T-14 | ✅ 完成：`attack-playbook.md`、`audit-report-template.md`、`optimization-plan-template.md`（与 first-principles 软链接共用） |
+| 2026-09-30 | T-15 | ✅ 完成：`knowledge-base-map.md`（依据 Obsidian 实际结构写成） |
+| 2026-09-30 | T-13 | 🟡 部分完成 2/8：`kickoff-and-architecture.md`、`audit-workflow.md`；其余 6 处经用户确认超出本次范围 |
 |  |  |  |
 
 ---
