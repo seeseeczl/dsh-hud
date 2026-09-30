@@ -28,9 +28,19 @@ test('跨端契约：两端的默认按钮清单必须一致', () => {
   // 客户端内置一份默认（宿主配置还没写时顶上），宿主也有一份（投影的兜底）。
   // 两份拷贝不允许漂移 —— 改一边就必须改另一边。
   const client = loadClient()
-  const shape = (list) => list.map((button) => [button.id, button.label, button.kind, button.value])
+  const shape = (list) => list.map((button) => [button.id, button.label, button.icon, button.kind, button.value])
   assert.deepEqual(shape(client.DEFAULT_QUICK_ACTIONS), shape(DEFAULT_QUICK_ACTIONS),
     '默认按钮清单两端不一致：改了宿主 DEFAULT_QUICK_ACTIONS 就要同步客户端那份')
+})
+
+test('跨端契约：每个默认按钮的图标名都在图标集里', () => {
+  // 图标集只存在于客户端（宿主不画图），这条守住"默认清单不会指向一个不存在的图标"。
+  const client = loadClient()
+  const names = client.QUICK_ICON_NAMES
+  assert.ok(Array.isArray(names) && names.length >= 20, '图标集至少要有 20 个可选图标')
+  for (const button of client.DEFAULT_QUICK_ACTIONS) {
+    assert.ok(names.includes(button.icon), `默认按钮 ${button.id} 的图标 ${button.icon} 不在图标集里`)
+  }
 })
 
 test('跨端契约：宿主投影单元用的是同一个 key 与状态版本', () => {

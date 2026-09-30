@@ -213,3 +213,32 @@ test('quickButtonsOf：只保留能寻址的按钮，其余丢弃', () => {
   assert.deepEqual(kept.map((button) => button.id), ['ok'])
   assert.equal(kept[0].kind, 'command')
 })
+
+test('设置页：从 describe() 的结果里按 schema 结构认出本插件的配置项', () => {
+  const { findQuickActionsDescriptor } = loadClient()
+  const descriptors = [
+    { ns: 'other', schema: { properties: { foo: {} } }, value: {} },
+    { ns: 'sym', revision: 7, schema: { properties: { enabled: {}, buttons: {} } }, value: { enabled: true, buttons: [] } },
+  ]
+  const found = findQuickActionsDescriptor(descriptors)
+  assert.equal(found.ns, 'sym')
+  assert.equal(found.revision, 7)
+  assert.deepEqual(found.value, { enabled: true, buttons: [] })
+  assert.equal(findQuickActionsDescriptor([]), null)
+  assert.equal(findQuickActionsDescriptor(null), null)
+  assert.equal(findQuickActionsDescriptor([{ ns: 'x', schema: { properties: { buttons: {} } } }]), null,
+    '只有 buttons 不算，必须 enabled 与 buttons 同时声明')
+})
+
+test('设置页：配置值与编辑草稿之间的转换', () => {
+  const { quickButtonsFromValue, toConfigButton } = loadClient()
+  assert.equal(quickButtonsFromValue(null), null)
+  assert.equal(quickButtonsFromValue({}), null)
+  assert.deepEqual(quickButtonsFromValue({ buttons: [] }), [])
+  const config = toConfigButton({ id: 'a', label: 'A', icon: 'search', kind: 'skill', value: 'x', extra: 1 })
+  assert.deepEqual(Object.keys(config).sort(), ['icon', 'id', 'kind', 'label', 'value'],
+    '只写 schema 声明的字段，别把界面状态写回文件')
+  assert.equal(config.kind, 'skill')
+  assert.equal(toConfigButton({}).icon, 'dot', '缺字段补默认')
+  assert.equal(toConfigButton({ kind: 'nope' }).kind, 'prompt')
+})
