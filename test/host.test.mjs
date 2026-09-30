@@ -3,8 +3,9 @@ import assert from 'node:assert/strict'
 import {
   isPeakTime, expandQuoteMarks, rememberProse, proseOfMessage, readProcessMemory,
   DEEPSEEK_CNY, DEFAULT_USD_TO_CNY,
-  QUICK_ACTIONS_KEY, DEFAULT_QUICK_ACTIONS, normalizeQuickActions, quickActionsProjection,
-} from '../lib/host-v9.js'
+  QUICK_ACTIONS_KEY, DEFAULT_QUICK_ACTIONS, normalizeQuickActions,
+  createQuickActionsProjection, buttonsFromConfig, Config,
+} from '../lib/host-v10.js'
 
 /** Beijing wall-clock on 2026-09-30 (a Wednesday) as epoch ms. */
 const bj = (y, m, d, hh, mm = 0) => Date.UTC(y, m - 1, d, hh - 8, mm)
@@ -206,10 +207,11 @@ test('快捷按钮：normalizeQuickActions 丢弃残缺记录而不整条失败'
 })
 
 test('快捷按钮：投影视图按引用稳定（击穿 viewCache 会无限重渲染）', () => {
-  assert.equal(quickActionsProjection.key, QUICK_ACTIONS_KEY)
-  assert.equal(quickActionsProjection.stateVersion, 1)
-  const first = quickActionsProjection.wire.view({})
-  const second = quickActionsProjection.wire.view({})
+  const unit = createQuickActionsProjection()
+  assert.equal(unit.key, QUICK_ACTIONS_KEY)
+  assert.equal(unit.stateVersion, 1)
+  const first = unit.wire.view({})
+  const second = unit.wire.view({})
   assert.equal(first, second, 'view 必须返回同一引用')
   assert.equal(first.buttons, DEFAULT_QUICK_ACTIONS)
 })
@@ -217,8 +219,46 @@ test('快捷按钮：投影视图按引用稳定（击穿 viewCache 会无限重
 test('快捷按钮：state 在首个事件后只变一次（否则客户端视图永不物化）', () => {
   // 实测教训：apply 若是真正的恒等，客户端那侧的视图缓存不会建立，
   // baseline 与增量里都没有这个 key，界面表现就是「什么都没发生」。
-  const initial = quickActionsProjection.init({}, 0)
-  const once = quickActionsProjection.apply(initial, { type: 'turn/start' })
+  const unit = createQuickActionsProjection()
+  const initial = unit.init({}, 0)
+  const once = unit.apply(initial, { type: 'turn/start' })
   assert.notEqual(once, initial, '首个事件必须换掉 state 引用')
-  assert.equal(quickActionsProjection.apply(once, { type: 'turn/start' }), once, '之后保持稳定')
+  assert.equal(unit.apply(once, { type: 'turn/start' }), once, '之后保持稳定')
+})
+
+test('快捷按钮：配置能覆盖默认清单，enabled:false 关掉整条 bar', () => {
+  // 没配过（或 schema 把缺失的数组补成 []）→ 回落内置默认
+  assert.equal(buttonsFromConfig(undefined), DEFAULT_QUICK_ACTIONS)
+  assert.equal(buttonsFromConfig({}), DEFAULT_QUICK_ACTIONS)
+  assert.equal(buttonsFromConfig({ buttons: [] }), DEFAULT_QUICK_ACTIONS)
+  assert.equal(buttonsFromConfig({ buttons: 'nope' }), DEFAULT_QUICK_ACTIONS)
+  // 显式关掉 → 一个都不显示（清空用这个开关，不靠清空数组）
+  assert.deepEqual(buttonsFromConfig({ enabled: false }), [])
+  assert.deepEqual(buttonsFromConfig({ enabled: false, buttons: [{ id: 'a', value: 'v' }] }), [])
+  // 配置了就用配置的，并丢掉残缺项
+  const configured = buttonsFromConfig({ buttons: [
+    { id: 'mine', label: '我的', icon: 'search', kind: 'skill', value: 'code-review' },
+    { id: '', value: 'x' },
+  ] })
+  assert.deepEqual(configured.map((button) => button.id), ['mine'])
+  assert.equal(configured[0].kind, 'skill')
+  assert.equal(configured[0].icon, 'search')
+  // 配置里的按钮也会进投影视图
+  const unit = createQuickActionsProjection(configured)
+  assert.equal(unit.wire.view({}).buttons, configured)
+})
+
+test('快捷按钮：Config schema 可用于设置页（平台 schema 库可用时）', () => {
+  // schema 库缺失时 Config 为 undefined，插件照常工作、只是没有可编辑表单。
+  if (Config === undefined) {
+    assert.ok(true, '本环境没有 schemastery，跳过 schema 断言')
+    return
+  }
+  const empty = new Config({})
+  assert.equal(empty.enabled, true, '默认开启')
+  const filled = new Config({ buttons: [{ id: 'a', label: 'A' }] })
+  assert.equal(filled.buttons.length, 1)
+  assert.equal(filled.buttons[0].id, 'a')
+  assert.equal(filled.buttons[0].kind, 'prompt', 'kind 缺省补成 prompt')
+  assert.equal(filled.buttons[0].icon, 'dot')
 })
