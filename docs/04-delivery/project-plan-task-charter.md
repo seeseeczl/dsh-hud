@@ -139,7 +139,7 @@
 
 - **输入**：FR-04、NFR-04；上游 §6.3（`holidays` 为公开契约）
 - **依赖**：无
-- **主要模块**：`lib/host-v11.js`（**高代价模块**）、`lib/prices.json`
+- **主要模块**：`lib/host-v12.js`（**高代价模块**）、`lib/prices.json`
 - **现状问题**：节假日同时存在于宿主常量 `DEFAULT_HOLIDAYS` 与 `prices.json`，**两处需同步**
 - **产物**：二者以 `prices.json` 为唯一事实源；宿主常量仅作兜底
 - **验收**：改 `prices.json` 后峰谷判定随之变化（用伪造时钟验证 2027 年某日）
@@ -356,8 +356,8 @@
 
 | 步骤 | 结果 |
 |---|---|
-| 换名 | `node scripts/reload-host.mjs --apply`：`lib/host-v6.js` → `lib/host-v11.js`，同步 11 个文件（含仓库外的 profile `cordis.patch.yml`）；`npm test` 31 例仍全绿 |
-| 补丁重载 | HMR 已重新组合 profile：`include:sym-cost` 的 moduleName 为 `file:///…/lib/host-v11.js`，`fiberPhase = active` |
+| 换名 | `node scripts/reload-host.mjs --apply`：`lib/host-v6.js` → `lib/host-v12.js`，同步 11 个文件（含仓库外的 profile `cordis.patch.yml`）；`npm test` 31 例仍全绿 |
+| 补丁重载 | HMR 已重新组合 profile：`include:sym-cost` 的 moduleName 为 `file:///…/lib/host-v12.js`，`fiberPhase = active` |
 | 插槽实证（client Slots inspect，真实页面） | `conversation.composer.dock`：`sym-cost`(10)、`link-menu`(20) 与官方 `stats` 并存，均 active<br>`conversation.chat.assistant-actions`：`quote-reference`(20)、`turn-cost`(30) 与官方 `feedback` 并存，均 active<br>`sidebar.footer.action`：`account-balance`(10) 与 `cordis-panel` 并存，均 active |
 | **尚未验证** | 状态栏两个金额与账户余额的**实际数值**、品牌行峰谷标记、`@` 引用展开、花费面板内的新 `data-sym-*` 标记——需要人眼看界面；且旧模块仍留在宿主内存，**重启 App 后才算完整验证**（AUD-OPS-002） |
 
