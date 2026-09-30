@@ -55,15 +55,21 @@ test('引用：标记能展开成被引用的正文', () => {
   assert.doesNotMatch(out[0].content[0].text, /@引用#/, '标记本身应被替换掉')
 })
 
-test('引用：未知 id 保留标记，但仍产生新批次（记录了实际行为）', () => {
-  // expandQuoteText returns a replacement string whenever a mark is present, so a
-  // mark that cannot be resolved still counts as "changed" and the batch is copied.
-  // This is the real contract; see AUD-LOGIC-001 in the adversarial audit.
+test('引用：未知 id 保留标记，且不再产生新批次（AUD-LOGIC-001）', () => {
+  // A mark that cannot be resolved is written back verbatim, so nothing was
+  // actually substituted and the batch must not be copied. The caller keeps its
+  // original decision object.
   const input = [{ role: 'user', content: [{ type: 'text', text: '参考 @引用#ffffffffffff 的做法' }] }]
-  const out = expandQuoteMarks(input)
-  assert.ok(out !== null, '当前实现会返回新批次')
-  assert.match(out[0].content[0].text, /@引用#ffffffffffff/, '未知 id 应保留标记原文')
-  assert.notEqual(out, input, '返回的是新对象，不是原对象')
+  assert.equal(expandQuoteMarks(input), null, '无成功替换 ⇒ 返回 null')
+})
+
+test('引用：同一批里未知 id 与已知 id 混合时，整批仍会展开', () => {
+  const id = 'a1b2c3d4e5f60000'
+  rememberProse(id, '已知的正文')
+  const out = expandQuoteMarks([{ role: 'user', content: [{ type: 'text', text: `@引用#ffffffffffff 与 @引用#${id.slice(0, 12)}` }] }])
+  assert.ok(out !== null, '有一个成功替换即算改动')
+  assert.match(out[0].content[0].text, /@引用#ffffffffffff/, '未知 id 保持原样')
+  assert.match(out[0].content[0].text, /已知的正文/, '已知 id 正常展开')
 })
 
 test('引用：无标记的消息返回 null，非数组入参也返回 null', () => {
@@ -80,7 +86,7 @@ test('记忆索引有界：超过 400 条后最旧的无法再被引用', () => 
   for (let i = 0; i < 450; i += 1) rememberProse(mkId(i), 'prose-' + i)
 
   const oldest = expandQuoteMarks([{ role: 'user', content: [{ type: 'text', text: `@引用#${mkId(0).slice(0, 12)}` }] }])
-  assert.match(oldest[0].content[0].text, /@引用#/, '最旧的应已被淘汰，标记保持原样')
+  assert.equal(oldest, null, '最旧的应已被淘汰：标记解析不到 ⇒ 无替换 ⇒ null')
 
   const newest = expandQuoteMarks([{ role: 'user', content: [{ type: 'text', text: `@引用#${mkId(449).slice(0, 12)}` }] }])
   assert.match(newest[0].content[0].text, /prose-449/, '最新的应仍可展开')
@@ -109,4 +115,53 @@ test('readProcessMemory：返回字节数，且 rss 大于 0', () => {
   const mem = readProcessMemory()
   assert.ok(mem !== null, '在 Node 里应可用')
   assert.ok(mem.rss > 0 && mem.heapUsed > 0)
+})
+
+// ---------------------------------------------------------------------------
+// 失败路径与非法入参（AUD-TEST-002 的整改）。代码里 return null 出现 20 次，
+// 全是失败分支；下面把主要入口的失败行为固定下来。
+// ---------------------------------------------------------------------------
+
+test('失败路径：expandQuoteMarks 对非法入参一律返回 null', () => {
+  assert.equal(expandQuoteMarks(null), null)
+  assert.equal(expandQuoteMarks(undefined), null)
+  assert.equal(expandQuoteMarks('not an array'), null)
+  assert.equal(expandQuoteMarks(42), null)
+  assert.equal(expandQuoteMarks({}), null)
+})
+
+test('失败路径：内容块缺失或类型异常时整条消息原样保留', () => {
+  const messages = [
+    { role: 'user' },                                    // 没有 content
+    { role: 'user', content: 'plain string' },            // content 不是数组
+    { role: 'user', content: null },
+  ]
+  // 无标记 ⇒ 无变化 ⇒ null（调用方保留原对象）
+  assert.equal(expandQuoteMarks(messages), null)
+})
+
+test('失败路径：proseOfMessage 对各类非法入参返回 null 而不抛错', () => {
+  assert.equal(proseOfMessage(null), null)
+  assert.equal(proseOfMessage(undefined), null)
+  assert.equal(proseOfMessage({}), null)
+  assert.equal(proseOfMessage({ content: null }), null)
+  assert.equal(proseOfMessage({ content: 'string' }), null)
+  assert.equal(proseOfMessage({ content: [] }), null)
+  assert.equal(proseOfMessage({ content: [{ type: 'text', text: '' }] }), null, '空文本不计入')
+})
+
+test('失败路径：isPeakTime 对极端时间戳不抛错', () => {
+  const none = new Set()
+  assert.equal(typeof isPeakTime(0, none), 'boolean')
+  assert.equal(typeof isPeakTime(Number.MAX_SAFE_INTEGER, none), 'boolean')
+  assert.equal(typeof isPeakTime(-1, none), 'boolean')
+})
+
+test('失败路径：引用标记格式不完整时不匹配', () => {
+  rememberProse('abcdef1234567890', '正文')
+  const cases = ['@引用#', '@引用#abc', '@引用', '@引用#zzzzzzzzzzzz']
+  for (const text of cases) {
+    const out = expandQuoteMarks([{ role: 'user', content: [{ type: 'text', text }] }])
+    assert.equal(out, null, `「${text}」不应被视为有效标记`)
+  }
 })
