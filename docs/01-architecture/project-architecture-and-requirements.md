@@ -215,8 +215,8 @@ Git        干净（0 未提交）· main · git@github.com:seeseeczl/dsh-sym.gi
 | FR-01/02 | `client.js` | 线上实测：按钮含两金额；坐标顺序验证 |
 | FR-03 | `client.js` | 线上实测：¥429.70 正常显示；未登录时不渲染 |
 | FR-04 | `client.js` | 伪造时钟跨边界实测：峰 `rgb(245,158,11)` / 谷 `rgb(34,197,94)` |
-| FR-05 | 两端 | 单测：展开逻辑与 6 类边界；`focusComposer` 的优先级/顺序/降级（假 DOM） |
-| FR-05b | `client.js` | 源码守卫：两个插入按钮都必须挂 `keepComposerFocus` 并在成功后 `focusComposer` |
+| FR-05 | 两端 | 单测：展开逻辑与 6 类边界；`focusComposer` 的会话收窄 / 已在框内不动 / 跳过隐藏与非编辑器 / 拿不到编辑器实例不裸 focus（假 DOM） |
+| FR-05b | `client.js` | 源码守卫：四个会抢焦点的控件（竖条、`@`、成本药丸、余额药丸）都要挂 `keepComposerFocus`，两处插入成功后要 `focusComposer` |
 | FR-06/07 | `client.js` | 单测：谷时省下各边界、缓存省下不再出现（反例守卫）；线上实测面板内容 |
 | FR-08 | 两端 | 线上实测：`349618176` 字节 → `333M` |
 | FR-09 | `client.js` | 线上实测：右键弹出菜单、点复制有反馈、无异常 |

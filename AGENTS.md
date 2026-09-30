@@ -292,6 +292,40 @@ namespaces: [...] } }`，且 descriptor 里的 `schema` 是 schemastery 内部�
 （拿回键盘），**再** `editor.focus()`（让 Lexical 还原它自己记的选区）。直接对
 contenteditable 裸调 `focus()` 会把光标丢到开头。见 `focusComposer` / `keepComposerFocus`。
 
+**但"往输入框写字"不是只有一条路 —— 官方同一时刻可以挂多份会话，每份都有自己的输入框**：
+
+- 右侧栏的聊天标签走 `sidebar.chat.conversation`，槽清单里它的 standardProps 明确含
+  `inputActions` / `useInput`，也就是**一份完整的 Conversation occurrence**；
+- 子代理面板用 `variant: "embedded"` 渲染 `conversation.content`（`dsh-client-ui-subagent`
+  的 `ConversationSlotPanel`）。
+
+所以 `document.querySelector("[data-composer-input]")` 是**猜**：它拿文档顺序第一份，
+不一定是点按钮的那个人正在用的那份（竖条本身也是会话级的，可能同时存在两份）。
+正确的做法是按**触发元素**收窄 —— `dsh-client-ui-renderer` 给每个槽渲染的 div 打
+`data-slot=<槽名>`，官方 CSS 自己也选 `[data-slot=conversation\.session]`，所以
+`from.closest('[data-slot="conversation.content"], [data-slot="conversation.session"]')`
+是稳的。收窄的规矩（见 `findComposer`）：
+
+- 光标已经在某个输入框里 → **什么都别做**（鼠标路径下 `preventDefault` 让它根本没动过）；
+- 找得到会话容器 → 只在容器里找；**容器里没有可用输入框就不要越界**去抓别人的；
+- 容器都找不到（按钮不在会话里）→ 才退回全文档查找。
+
+**同一个 `[data-composer-input]` 还有两种"不是真输入框"的形态**，命中它们会让"成功"变成谎报：
+
+- workspace 触发器状态：官方 JSX 是 `editor: workspaceTrigger ? null : editor`，于是
+  `contenteditable=false`、`__lexicalEditor` 被 delete，但属性还在；
+- `phase=settling`：官方 CSS 把整个 composer 座位设成 `visibility: hidden`（还挂着，
+  所以 `getClientRects()` 抓不到它，得用 `getComputedStyle`）。
+
+判据两条一起用：**有 `__lexicalEditor`** 且 **`contentEditable === "true"`** 且**可见**。
+拿不到编辑器实例就**一个 focus 都别做** —— 裸 focus 会把 DOM 插入点放到偏移 0，
+Lexical 又可能把 DOM 选区回收成模型选区，结果是"文字插到草稿开头"。这种情况记
+`noteDegrade("focus:no-editor", …)`，不要猜。
+
+**看数不写字的按钮也要挡一下**：成本药丸是 `display:contents` 的 span，余额药丸是 button，
+点它们都会把输入框的焦点弄丢（非聚焦元素被点时焦点掉到 body）。它们只挂
+`keepComposerFocus`（不抢），**不要**调 `focusComposer`（看花费不是要写字，不该把光标抓过来）。
+
 **官方 `/` 菜单里的命令分两类，插件能做的完全不同**：
 
 - **宿主命令**（压缩 compact / 权限 permission / 模型 model / 下载日志 export）：可以走

@@ -82,13 +82,15 @@ test('跨端契约：缓存省下的文案与数据属性不得回流', () => {
   assert.ok(source.includes('谷时折扣为你省下'), '谷时折扣必须保留')
 })
 
-test('跨端契约：两个"点一下就填进输入框"的按钮都必须不让焦点被抢走', () => {
-  // 竖条上的快捷按钮与回复动作行里的 @ 引用按钮是同一类控件：它们的全部工作就是
-  // 往草稿里写字，写完键盘必须还在输入框里（用户报过"点完光标就没了"）。
-  // 少写一处不会报错，只会在线上表现为"这个按钮点完要再点一下输入框"，所以钉住。
+test('跨端契约：会抢走输入框焦点的四个控件都必须按下去不抢', () => {
+  // 两类控件，两种处理：
+  // · 往草稿里写字的（竖条快捷按钮、回复动作行的 @）—— 不抢焦点，写完全程把光标还回去；
+  // · 只是看一眼的（成本药丸、侧栏余额药丸）—— 只做到不抢，不去抓焦点（看花费不是要写字）。
+  // 这两类都是 `<button>` 或非聚焦元素，按下时都会把输入框的焦点弄丢，用户报过
+  // "点完光标就没了"。少写一处不会报错，只会在线上表现为"点完要再点一下输入框"，所以钉住。
   const source = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
   const guarded = source.match(/onMouseDown: keepComposerFocus/g) ?? []
-  assert.equal(guarded.length, 2, '快捷按钮与引用按钮都要挂上 keepComposerFocus')
-  const focused = source.match(/if \(ok\) focusComposer\(\);/g) ?? []
-  assert.equal(focused.length, 2, '两处插入成功后都要把光标还回去')
+  assert.equal(guarded.length, 4, '竖条按钮、@ 引用按钮、成本药丸、余额药丸四处都要挂 keepComposerFocus')
+  const focused = source.match(/if \(ok\) focusComposer\(/g) ?? []
+  assert.equal(focused.length, 2, '两处插入成功后都要把光标还回去（并带上触发元素用于收窄会话）')
 })

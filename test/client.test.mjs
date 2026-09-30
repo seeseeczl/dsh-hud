@@ -5,10 +5,10 @@ import { loadClient } from './helpers/load-client.mjs'
 /**
  * 客户端纯函数的断言（审计 AUD-QUAL-001 / 任务卡 P1-01）。
  *
- * 只测 `describeScope` 的账单文本：它是悬停提示与花费面板共用的输出，
- * 覆盖 FM-006（花费面板）与 FM-007（峰谷拆分 + 两项省钱）的全部验收点。
- * 不引入 jsdom，也不渲染任何组件——`load-client.mjs` 已经用最小替身把
- * 模块工厂物化出来。
+ * 两类：`describeScope` 的账单文本（悬停提示与花费面板共用的输出，覆盖 FM-006
+ * 花费面板与 FM-007 峰谷拆分 + 谷时省钱的全部验收点），以及把键盘交还输入框的
+ * `focusComposer` / `keepComposerFocus`（假 DOM，不引入 jsdom、不渲染组件 ——
+ * `load-client.mjs` 已经用最小替身把模块工厂物化出来）。
  */
 
 /** DeepSeek flash 现行人民币价目：高峰价，空闲价为一半。 */
@@ -304,64 +304,127 @@ test('显示项：三个开关默认全开，读写往返正确，坏值回落�
 })
 
 //#region 光标归还（点快捷按钮 / 引用按钮之后，键盘必须回到输入框）
-// 输入框是官方的 Lexical contenteditable：根节点带 `data-composer-input`，Lexical
-// 还把编辑器实例挂在同一个节点上（`__lexicalEditor`）。两条都是从线上 bundle 里
-// 读出来的事实，不是猜的，下面的假 DOM 就按这个形状造。
+// 输入框是官方的 Lexical contenteditable：根节点带 `data-composer-input`，Lexical 把
+// 编辑器实例挂在同一个节点上（`__lexicalEditor`）。第二条是关键 —— 没有它就说明这节点
+// 不是真编辑器（workspace 触发器状态下官方把它渲染成 `contenteditable=false`），那时
+// 裸 focus 会把光标丢到开头。下面按这个形状造假 DOM，不引入 jsdom。
+
+const COMPOSER_SEL = '[data-composer-input]'
 
 /**
- * 假 document：只回答 composer 那一条查询，其余（模块加载时那次 style 探测）
- * 一律返回 null。`calls` 按发生顺序记录 composer 查询与焦点动作。
+ * 一个假输入框根节点。`calls` 记录落在它身上的动作，用来断言"到底碰了谁"。
+ * @param name - 在调用记录里的标签。
+ * @param calls - 共享的记录数组。
+ * @param options - `editor:false` 去掉 Lexical 实例；`editable:false` 变成非编辑器形态；
+ *   `hidden:true` 变成 `visibility:hidden`（settling 阶段的官方样式）。
  */
-function fakeComposerDocument(root, calls = []) {
+function fakeComposer(name, calls, options = {}) {
+  const node = {
+    name,
+    contentEditable: options.editable === false ? 'false' : 'true',
+    focus: (opts) => calls.push(name + ':dom', opts),
+    getClientRects: () => [{}],
+    __style: { visibility: options.hidden === true ? 'hidden' : 'visible', display: 'block' },
+  }
+  if (options.editor !== false) node.__lexicalEditor = { focus: () => calls.push(name + ':lexical') }
+  return node
+}
+
+/** 假 document：只回答 composer 查询，其余（加载期那次 style 探测）留给基础替身。 */
+function fakeDoc(spec = {}) {
+  const nodes = spec.nodes ?? []
+  const search = (sel) => (sel === COMPOSER_SEL ? nodes : [])
   return {
-    querySelector(selector) {
-      if (selector !== '[data-composer-input]') return null
-      calls.push(['query', selector])
-      return root
-    },
+    activeElement: spec.active ?? null,
+    querySelectorAll: search,
+    defaultView: { getComputedStyle: (node) => node.__style ?? { visibility: 'visible', display: 'block' } },
   }
 }
 
-test('光标归还：优先让 Lexical 还原选区，顺序是先 DOM 焦点再 Lexical', () => {
-  const calls = []
-  const root = { focus: (opts) => calls.push(['dom', opts]) }
-  root.__lexicalEditor = { focus: () => calls.push(['lexical']) }
-  const { focusComposer } = loadClient({ document: fakeComposerDocument(root, calls) })
+/** 一个"按钮"：只需支持 closest（收窄到所属会话）。 */
+function fakeTrigger(scope, calls) {
+  return { closest: (sel) => { calls.push('closest:' + sel); return scope ?? null } }
+}
 
-  assert.equal(focusComposer(), true)
-  assert.deepEqual(calls, [
-    ['query', '[data-composer-input]'],
-    ['dom', { preventScroll: true }],
-    ['lexical'],
-  ], '先给 DOM 焦点再让 Lexical 还原选区，与官方 focus() 同序')
+test('光标归还：光标已经在输入框里就不去抢（鼠标路径下的常态）', () => {
+  const calls = []
+  const node = fakeComposer('mine', calls)
+  const { focusComposer } = loadClient({ document: fakeDoc({ nodes: [node], active: node }) })
+  assert.equal(focusComposer(null), true)
+  assert.deepEqual(calls, [], '已经在里面了，再 focus 一次只会打扰 Lexical 的选区')
 })
 
-test('光标归还：没有 Lexical 实例时退回裸 focus，仍然算成功', () => {
+test('光标归还：按按钮所属的会话收窄，不碰排在前面的另一份会话', () => {
   const calls = []
-  const root = { focus: (opts) => calls.push(opts) }
-  const { focusComposer } = loadClient({ document: fakeComposerDocument(root, calls) })
-  assert.equal(focusComposer(), true)
-  assert.deepEqual(calls, [
-    ['query', '[data-composer-input]'],
-    { preventScroll: true },
-  ], '裸 focus 必须 preventScroll，否则输入框会被滚进视野')
+  // 官方同一时刻可以挂两份完整会话（右侧栏聊天标签 / 子代理面板 variant:"embedded"），
+  // 它们各有自己的输入框；文档顺序在前的那份不是我们该碰的。
+  const other = fakeComposer('other', calls)
+  const mine = fakeComposer('mine', calls)
+  const scope = { querySelectorAll: (sel) => (sel === COMPOSER_SEL ? [mine] : []) }
+  const { focusComposer } = loadClient({ document: fakeDoc({ nodes: [other, mine] }) })
+
+  assert.equal(focusComposer(fakeTrigger(scope, calls)), true)
+  assert.ok(String(calls[0]).startsWith('closest:'), '先按最近的会话容器收窄')
+  assert.deepEqual(calls.slice(1), ['mine:dom', { preventScroll: true }, 'mine:lexical'],
+    '碰的必须是本会话那个输入框')
+  assert.ok(!calls.includes('other:dom') && !calls.includes('other:lexical'), '另一份会话的输入框一个都不该碰')
+})
+
+test('光标归还：本会话没有可用输入框时，不越界去抓别人的', () => {
+  const calls = []
+  const other = fakeComposer('other', calls)
+  const { focusComposer } = loadClient({ document: fakeDoc({ nodes: [other] }) })
+  assert.equal(focusComposer(fakeTrigger({ querySelectorAll: () => [] }, calls)), false)
+  assert.deepEqual(calls.filter((c) => c.startsWith('other')), [], '宁可不动焦点，也不能把光标送进另一份会话')
+})
+
+test('光标归还：按钮不在会话容器里时退回全文档查找', () => {
+  const calls = []
+  const mine = fakeComposer('mine', calls)
+  const { focusComposer } = loadClient({ document: fakeDoc({ nodes: [mine] }) })
+  assert.equal(focusComposer(fakeTrigger(null, calls)), true)
+  assert.ok(calls.includes('mine:dom') && calls.includes('mine:lexical'))
+})
+
+test('光标归还：closest 抛错时退回全文档，不冒到调用方', () => {
+  const calls = []
+  const mine = fakeComposer('mine', calls)
+  const { focusComposer } = loadClient({ document: fakeDoc({ nodes: [mine] }) })
+  const boom = { closest: () => { throw new Error('closest 炸了') } }
+  assert.equal(focusComposer(boom), true)
+  assert.ok(calls.includes('mine:lexical'))
+})
+
+test('光标归还：跳过 settling 隐藏的、非编辑器的、没有 Lexical 实例的候选', () => {
+  const calls = []
+  const hidden = fakeComposer('hidden', calls, { hidden: true })
+  const notEditable = fakeComposer('notEditable', calls, { editable: false })
+  const ghost = fakeComposer('ghost', calls, { editor: false })
+  const real = fakeComposer('real', calls)
+  const { focusComposer } = loadClient({ document: fakeDoc({ nodes: [hidden, notEditable, ghost, real] }) })
+
+  assert.equal(focusComposer(null), true)
+  assert.deepEqual(calls, ['real:dom', { preventScroll: true }, 'real:lexical'], '只有最后那个才是真输入框')
+})
+
+test('光标归还：拿不到 Lexical 实例就一个 focus 都不做', () => {
+  const calls = []
+  const ghost = fakeComposer('ghost', calls, { editor: false })
+  const { focusComposer } = loadClient({ document: fakeDoc({ nodes: [ghost] }) })
+  assert.equal(focusComposer(null), false)
+  assert.deepEqual(calls, [], '裸 focus 会把光标丢到开头，宁可不动')
+})
+
+test('光标归还：focus 抛错时咽掉并如实报失败', () => {
+  const node = fakeComposer('boom', [])
+  node.focus = () => { throw new Error('focus 炸了') }
+  const { focusComposer } = loadClient({ document: fakeDoc({ nodes: [node] }) })
+  assert.equal(focusComposer(null), false)
 })
 
 test('光标归还：找不到输入框时安静返回 false', () => {
-  assert.equal(loadClient({ document: fakeComposerDocument(null) }).focusComposer(), false)
-  assert.equal(loadClient().focusComposer(), false, '默认替身的 querySelector 恒为 null')
-})
-
-test('光标归还：查询或 focus 抛错时自己咽掉，不冒到调用方', () => {
-  const onQuery = loadClient({
-    document: { querySelector: (selector) => { if (selector === '[data-composer-input]') throw new Error('query 炸了'); return null } },
-  })
-  assert.equal(onQuery.focusComposer(), false)
-
-  const onFocus = loadClient({
-    document: fakeComposerDocument({ focus: () => { throw new Error('focus 炸了') } }),
-  })
-  assert.equal(onFocus.focusComposer(), false, '连 DOM 焦点都没给上，就要如实报失败')
+  assert.equal(loadClient({ document: fakeDoc({ nodes: [] }) }).focusComposer(null), false)
+  assert.equal(loadClient().focusComposer(null), false, '默认替身里没有任何候选节点')
 })
 
 test('光标留在输入框：按下按钮时阻止默认行为，避免焦点被抢走', () => {
