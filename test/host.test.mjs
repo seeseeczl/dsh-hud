@@ -4,7 +4,7 @@ import {
   isPeakTime, expandQuoteMarks, rememberProse, proseOfMessage, readProcessMemory,
   DEEPSEEK_CNY, DEFAULT_USD_TO_CNY,
   QUICK_ACTIONS_KEY, DEFAULT_QUICK_ACTIONS, normalizeQuickActions, quickActionsProjection,
-} from '../lib/host-v8.js'
+} from '../lib/host-v9.js'
 
 /** Beijing wall-clock on 2026-09-30 (a Wednesday) as epoch ms. */
 const bj = (y, m, d, hh, mm = 0) => Date.UTC(y, m - 1, d, hh - 8, mm)
@@ -212,7 +212,13 @@ test('快捷按钮：投影视图按引用稳定（击穿 viewCache 会无限重
   const second = quickActionsProjection.wire.view({})
   assert.equal(first, second, 'view 必须返回同一引用')
   assert.equal(first.buttons, DEFAULT_QUICK_ACTIONS)
-  const state = { any: 'state' }
-  assert.equal(quickActionsProjection.apply(state, { type: 'turn/start' }), state,
-    'apply 是恒等的：按钮来自配置，不来自会话日志')
+})
+
+test('快捷按钮：state 在首个事件后只变一次（否则客户端视图永不物化）', () => {
+  // 实测教训：apply 若是真正的恒等，客户端那侧的视图缓存不会建立，
+  // baseline 与增量里都没有这个 key，界面表现就是「什么都没发生」。
+  const initial = quickActionsProjection.init({}, 0)
+  const once = quickActionsProjection.apply(initial, { type: 'turn/start' })
+  assert.notEqual(once, initial, '首个事件必须换掉 state 引用')
+  assert.equal(quickActionsProjection.apply(once, { type: 'turn/start' }), once, '之后保持稳定')
 })

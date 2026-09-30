@@ -2,8 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   PROJECTION_KEY, QUOTE_MARK_PREFIX, QUOTE_MARK_ID_LENGTH, QUICK_ACTIONS_KEY,
-  sessionCostProjection, rememberProse, expandQuoteMarks,
-} from '../lib/host-v8.js'
+  DEFAULT_QUICK_ACTIONS, sessionCostProjection, rememberProse, expandQuoteMarks,
+} from '../lib/host-v9.js'
 import { loadClient } from './helpers/load-client.mjs'
 
 /**
@@ -22,6 +22,15 @@ test('跨端契约：投影 key 与引用标记格式，两端常量一致', () 
   assert.equal(client.QUOTE_MARK_PREFIX, QUOTE_MARK_PREFIX, '引用标记前缀必须两端一致')
   assert.equal(client.QUOTE_MARK_ID_LENGTH, QUOTE_MARK_ID_LENGTH, '标记里的 id 长度必须两端一致')
   assert.equal(client.QUICK_ACTIONS_KEY, QUICK_ACTIONS_KEY, '快捷按钮条的投影 key 必须两端同名')
+})
+
+test('跨端契约：两端的默认按钮清单必须一致', () => {
+  // 客户端内置一份默认（宿主配置还没写时顶上），宿主也有一份（投影的兜底）。
+  // 两份拷贝不允许漂移 —— 改一边就必须改另一边。
+  const client = loadClient()
+  const shape = (list) => list.map((button) => [button.id, button.label, button.kind, button.value])
+  assert.deepEqual(shape(client.DEFAULT_QUICK_ACTIONS), shape(DEFAULT_QUICK_ACTIONS),
+    '默认按钮清单两端不一致：改了宿主 DEFAULT_QUICK_ACTIONS 就要同步客户端那份')
 })
 
 test('跨端契约：宿主投影单元用的是同一个 key 与状态版本', () => {

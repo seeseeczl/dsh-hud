@@ -64,13 +64,20 @@
 
 **注意**：投影是 per-session 的，所以配置会随每个会话各下发一份（体积很小，可接受）。**未验证但不影响方案**：客户端半边能否直接拿到 entry config（文档未写明），因此统一走投影。
 
+**实测踩到的两个坑（2026-09-30，都已修）**：
+
+1. **只换文件名不生效**：宿主入口 v7→v8 之后 `fiberPhase` 显示 active、`moduleName` 也是新文件，但跑的还是旧模块，新 key 根本不存在。必须**停用 → 启用**（会话内用插件管理器即可，不必重启 App）。判据：`~/.dsh/storages/session_projcache/sessions/<id>.json` 的 `rows` 里有没有新 key。
+2. **`apply` 恒等 → 客户端永远读不到**：state 引用从不变化时，宿主不计算也不缓存客户端视图，基线里没有这个 key。修法是让 `apply` 在首个事件翻转一个占位字段（守卫见 `test/host.test.mjs`）。界面上这个 bug 的表现是「什么都没发生、也没有任何报错」，最难查。
+
+因为坑 2 的风险，客户端**内置了一份默认按钮**（`DEFAULT_QUICK_ACTIONS`）：投影有值就用投影的，没有就用自己的。两份清单由 `test/contracts.test.mjs` 守卫一致。
+
 ## 4. 配置格式（草案）
 
 存放在插件 entry 的 config 里（`cordis.patch.yml` 的 `sym-cost` 行），由插件自带的 schema 约束：
 
 ```yaml
 - id: sym-cost
-  name: 'file:///…/lib/host-v8.js'
+  name: 'file:///…/lib/host-v9.js'
   config:
     buttons:
       - { id: compact, label: 压缩上下文, icon: compress, kind: command, value: "/compact" }

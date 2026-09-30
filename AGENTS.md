@@ -46,7 +46,7 @@
 对下面这些接口**连续误判 6 次**——因为契约此前只存在于实现里。**签名与返回契约以实现为准，
 本节是它的可读副本；发现不一致时先改本节。**
 
-### `lib/host-v8.js`
+### `lib/host-v9.js`
 
 ```js
 isPeakTime(ms, holidays = new Set(DEFAULT_HOLIDAYS)) -> boolean
@@ -138,7 +138,7 @@ registerSlotCell(ctx, name, id, order, component) -> disposer | null
 
 | 常量 | 宿主 | 客户端 |
 |---|---|---|
-| `PROJECTION_KEY` | `lib/host-v8.js` 顶部 | `lib/client.js` 的 contract 区 |
+| `PROJECTION_KEY` | `lib/host-v9.js` 顶部 | `lib/client.js` 的 contract 区 |
 | `QUOTE_MARK_PREFIX` / `QUOTE_MARK_ID_LENGTH` | 同上 | 同上 |
 
 **守卫在 `test/contracts.test.mjs`**：它断言两边相等，并用"客户端生成标记 → 宿主展开"
@@ -185,3 +185,25 @@ registerSlotCell(ctx, name, id, order, component) -> disposer | null
 - **技能目录是会话开始时的快照**，新建/复制进去的技能**当前会话看不到**，需开新会话
 - `project-architect` 等四个技能的附件（`references/` `scripts/` `assets/`）**不存在**，
   只有 `SKILL.md`；照方法论人工执行，**不要假装跑了校验脚本**
+
+### 宿主改动到底有没有生效（2026-09-30 踩过两次）
+
+- **不要看 `fiberPhase: active`** —— 跑着旧模块的实例也是 active，`moduleName` 显示新文件名
+  也可能是错觉。**唯一可靠判据**是
+  `~/.dsh/storages/session_projcache/sessions/<sessionId>.json` 的 `rows` 里
+  **有没有你新加的投影 key**（或老 key 的 `val` 有没有按你的新代码变化）。
+- 流程必须是三步：**换文件名 → 停用插件 → 启用插件**。只换文件名不够（模块缓存），
+  而且 HMR 只会重新组合配置、不会重载插件代码。停用/启用可以在会话里用插件管理器直接做
+  （`set_plugin`，entryId 是 `include:sym-cost`），**不必重启 App**：
+
+  ```
+  node scripts/reload-host.mjs --apply     # 换名 + 同步引用（已经脚本化）
+  # 然后 plugin_manager: set_plugin false → true
+  ```
+
+### 投影单元的一个坑（同一天踩到）
+
+**`apply` 必须至少让 state 变一次**（哪怕只是翻转一个占位字段）。state 引用始终不变时，
+宿主不会计算客户端视图、也不会缓存它，于是该 key 既不在 baseline 也不在增量里 ——
+界面表现是**什么都不发生且没有任何报错**。`sessionCost` 之所以没暴露这个问题，是因为它
+每轮都在变。守卫见 `test/host.test.mjs` 的「state 在首个事件后只变一次」。
