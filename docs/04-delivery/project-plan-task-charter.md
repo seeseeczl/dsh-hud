@@ -129,7 +129,11 @@
 - **预期**：版本一致
 - **停止条件**：发现历史 tag 与 package.json 版本不符 → 记录差异，不擅自改历史
 - **回滚**：删除文件并还原版本号
-- **时间线**：待回写
+- **时间线**：**2026-09-30 完成（随 1.1.0 发布）**。新增 `CHANGELOG.md`（Keep a Changelog 风格），
+  含 `[1.1.0]` 与 `[1.0.0]` 两条；1.0.0 条目的功能清单与 GitHub Release `v1.0.0` 的说明一致。
+  同时把版本引用一处不漏地跟着改：`package.json` 的 `version` 与 `files`（加入 CHANGELOG.md）、
+  `README.md`/`PUBLISHING.md` 的 tgz 示例、`docs/01-architecture` 的当前版本、`openspec/project.md`。
+  **验收口径修正**：原写"首条对应 v1.0.0"，实际应为"首条对应当前最新发布"，否则每次发版都要改验收标准。
 
 ### T-07 节假日表外置与年度更新路径
 

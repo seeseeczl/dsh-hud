@@ -19,10 +19,10 @@
 ```bash
 # ① 源机器：打包
 cd ~/.dsh/profiles/desktop/plugins/dsh-sym
-npm pack                     # 得到 dsh-sym-1.0.0.tgz（约 19 KB）
+npm pack                     # 得到 dsh-sym-1.1.0.tgz（约 200 KB）
 
 # ② 把 tgz 拷到目标机器，然后安装
-dsh plugin --profile desktop add ./dsh-sym-1.0.0.tgz
+dsh plugin --profile desktop add ./dsh-sym-1.1.0.tgz
 ```
 
 `dsh` 可执行文件在 `…/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh`，
@@ -42,7 +42,7 @@ dsh plugin --profile desktop add /path/to/dsh-sym
 
 ```bash
 cd ~/.dsh/profiles/desktop/plugins/dsh-sym
-git init && git add -A && git commit -m "dsh-sym 1.0.0"
+git init && git add -A && git commit -m "dsh-sym 1.1.0"
 git remote add origin git@github.com:<你>/dsh-sym.git && git push -u origin main
 
 # 目标机器
