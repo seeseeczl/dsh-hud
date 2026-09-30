@@ -302,3 +302,73 @@ test('显示项：三个开关默认全开，读写往返正确，坏值回落�
     else globalThis.localStorage = saved
   }
 })
+
+//#region 光标归还（点快捷按钮 / 引用按钮之后，键盘必须回到输入框）
+// 输入框是官方的 Lexical contenteditable：根节点带 `data-composer-input`，Lexical
+// 还把编辑器实例挂在同一个节点上（`__lexicalEditor`）。两条都是从线上 bundle 里
+// 读出来的事实，不是猜的，下面的假 DOM 就按这个形状造。
+
+/**
+ * 假 document：只回答 composer 那一条查询，其余（模块加载时那次 style 探测）
+ * 一律返回 null。`calls` 按发生顺序记录 composer 查询与焦点动作。
+ */
+function fakeComposerDocument(root, calls = []) {
+  return {
+    querySelector(selector) {
+      if (selector !== '[data-composer-input]') return null
+      calls.push(['query', selector])
+      return root
+    },
+  }
+}
+
+test('光标归还：优先让 Lexical 还原选区，顺序是先 DOM 焦点再 Lexical', () => {
+  const calls = []
+  const root = { focus: (opts) => calls.push(['dom', opts]) }
+  root.__lexicalEditor = { focus: () => calls.push(['lexical']) }
+  const { focusComposer } = loadClient({ document: fakeComposerDocument(root, calls) })
+
+  assert.equal(focusComposer(), true)
+  assert.deepEqual(calls, [
+    ['query', '[data-composer-input]'],
+    ['dom', { preventScroll: true }],
+    ['lexical'],
+  ], '先给 DOM 焦点再让 Lexical 还原选区，与官方 focus() 同序')
+})
+
+test('光标归还：没有 Lexical 实例时退回裸 focus，仍然算成功', () => {
+  const calls = []
+  const root = { focus: (opts) => calls.push(opts) }
+  const { focusComposer } = loadClient({ document: fakeComposerDocument(root, calls) })
+  assert.equal(focusComposer(), true)
+  assert.deepEqual(calls, [
+    ['query', '[data-composer-input]'],
+    { preventScroll: true },
+  ], '裸 focus 必须 preventScroll，否则输入框会被滚进视野')
+})
+
+test('光标归还：找不到输入框时安静返回 false', () => {
+  assert.equal(loadClient({ document: fakeComposerDocument(null) }).focusComposer(), false)
+  assert.equal(loadClient().focusComposer(), false, '默认替身的 querySelector 恒为 null')
+})
+
+test('光标归还：查询或 focus 抛错时自己咽掉，不冒到调用方', () => {
+  const onQuery = loadClient({
+    document: { querySelector: (selector) => { if (selector === '[data-composer-input]') throw new Error('query 炸了'); return null } },
+  })
+  assert.equal(onQuery.focusComposer(), false)
+
+  const onFocus = loadClient({
+    document: fakeComposerDocument({ focus: () => { throw new Error('focus 炸了') } }),
+  })
+  assert.equal(onFocus.focusComposer(), false, '连 DOM 焦点都没给上，就要如实报失败')
+})
+
+test('光标留在输入框：按下按钮时阻止默认行为，避免焦点被抢走', () => {
+  const { keepComposerFocus } = loadClient()
+  let prevented = 0
+  keepComposerFocus({ preventDefault: () => { prevented += 1 } })
+  assert.equal(prevented, 1)
+  assert.doesNotThrow(() => keepComposerFocus(null), '事件缺失时不该抛错')
+  assert.doesNotThrow(() => keepComposerFocus({}), '事件没有 preventDefault 时不该抛错')
+})

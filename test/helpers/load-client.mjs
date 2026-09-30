@@ -8,6 +8,8 @@
  * helpers (`describeScope`, `formatCny`, `pickTurn`, …) can be asserted without
  * a DOM. Deliberately no jsdom dependency — see the audit's P1-01 stop condition.
  *
+ * @param options - `document` replaces the minimal DOM shim, for the helpers that
+ *   do touch it (`focusComposer` queries `[data-composer-input]`).
  * @returns the module's exports.
  */
 import { readFileSync } from 'node:fs'
@@ -38,7 +40,7 @@ function fakeReact() {
   }
 }
 
-export function loadClient() {
+export function loadClient(options = {}) {
   // Save and restore the global so repeated loads cannot leak state into each
   // other (AUD-TEST-003): the module's own module-level caches stay per-instance
   // only if nothing of ours survives the call.
@@ -55,11 +57,18 @@ export function loadClient() {
       'window', 'document', 'MutationObserver', 'requestAnimationFrame',
       'cancelAnimationFrame', 'setTimeout', 'clearTimeout', source
     )
+    // `options.document` is merged onto the shim (not swapped in): the module
+    // injects its stylesheet at load time, so an override that only wants to
+    // answer one query must not have to reimplement `head`/`createElement`.
+    const baseDocument = {
+      querySelector: () => null, querySelectorAll: () => [], createElement: () => ({ dataset: {} }),
+      head: { appendChild: () => {} }, body: {},
+      documentElement: { style: { setProperty() {}, removeProperty() {} }, dataset: {} },
+      addEventListener() {}, removeEventListener() {},
+    }
     run(
       globalThis.window,
-      { querySelector: () => null, querySelectorAll: () => [], createElement: () => ({ dataset: {} }),
-        head: { appendChild: () => {} }, body: {}, documentElement: { style: { setProperty() {}, removeProperty() {} }, dataset: {} },
-        addEventListener() {}, removeEventListener() {} },
+      { ...baseDocument, ...(options.document ?? {}) },
       function () {},
       () => 0,
       () => {},

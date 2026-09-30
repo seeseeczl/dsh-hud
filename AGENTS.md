@@ -267,8 +267,30 @@ namespaces: [...] } }`，且 descriptor 里的 `schema` 是 schemastery 内部�
 （`/goal` 不带空格）则只会弹出 `/` 菜单，还要用户再选一次。
 
 另外：**菜单选中后的结构化命令 chip 是客户端 slash 流水线的内部结构，插件构造不出来** ——
-插件能做的只有"填入文本 + 空格"这个等效形态。`inputActions` 也只有 `insertText` 与
-`captureInsertion`，没有提交能力，所以"填进去并自动执行"做不到。
+插件能做的只有"填入文本 + 空格"这个等效形态。
+
+**更正（2026-09-30 查线上 bundle 得到）**：此前这里写着"`inputActions` 只有 `insertText` /
+`captureInsertion`，没有提交能力"，**是错的**。slot props 里的 `inputActions` 就是
+`SessionInputShell.actions`（`@deepseek-ai/dsh-client-ui-conversation/lib/client.js` 里
+`props: { inputActions: shell.actions }` 那一行），它一共给了七个方法：
+`captureInsertion` / `insertText` / `setDraft` / `addAttachments` / `removeAttachment` /
+`pruneAttachments` / **`submit`**（`submit: () => this.submit("queue")`，等同按回车）。
+所以"填进去并自动执行"在通道层面是**够得着**的。仍然做不到的是"以编程方式完成一次
+菜单 pick"：那个蓝色 token 与客户端自有命令的回调只由输入框的 `/` 菜单触发。
+（`submit()` 提交一段 `/命令 ` 文本会不会被 slash 流水线解释成命令，**没有验证过**。）
+
+**往输入框写完之后要把光标还回去**：输入框是官方的 Lexical `contenteditable`，
+根节点带 `data-composer-input`（属性选择器，不受哈希类名影响），Lexical 还把编辑器实例挂在
+同一个节点上（`root.__lexicalEditor`）。点 `<button>` 会把 DOM 焦点抢到按钮上，文字虽然进了
+草稿，但光标没了、接着打字打不进去。两条一起用：
+
+- `onMouseDown` 里 `event.preventDefault()` —— 鼠标路径下焦点**根本不离开**输入框，
+  连闪一下都没有（click 照常触发）；
+- 插入成功后再 `focusComposer()` —— 兜住键盘激活、以及光标本来就不在输入框的情况。
+
+归还顺序必须与官方 `SessionInputShell` 一致：**先** `root.focus({ preventScroll: true })`
+（拿回键盘），**再** `editor.focus()`（让 Lexical 还原它自己记的选区）。直接对
+contenteditable 裸调 `focus()` 会把光标丢到开头。见 `focusComposer` / `keepComposerFocus`。
 
 **官方 `/` 菜单里的命令分两类，插件能做的完全不同**：
 
@@ -281,7 +303,8 @@ namespaces: [...] } }`，且 descriptor 里的 `schema` 是 schemastery 内部�
   "贡献项是客户端自有命令…裸调用消费触发 token 后运行回调，不提交消息"。它们**不走宿主**，
   `commands.execute` 对它们**永远返回 `undefined`**。它们只能由输入框的 `/` 菜单 pick 触发，
   而那个蓝色 token 是客户端输入框的内部结构 —— `commandUi` 只暴露 `decorate`（给已有命令加
-  装饰），`inputActions` 只有 `insertText` / `captureInsertion`，**没有"以编程方式选中一条
-  命令"的入口**。插件最多只能落下白色文本，视觉上永远比不上菜单 pick 的蓝色 token。
+  装饰），`inputActions` 里**没有"以编程方式选中一条命令"的入口**（它有的是
+  `setDraft` / `insertText` / `submit` 这类，见上面的更正）。插件最多只能落下白色文本，
+  视觉上永远比不上菜单 pick 的蓝色 token。
 
 判断办法：填了命令 + 回车看结果，或直接看 `execute` 的返回值是不是 `undefined`。

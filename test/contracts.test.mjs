@@ -81,3 +81,14 @@ test('跨端契约：缓存省下的文案与数据属性不得回流', () => {
   // 谷时折扣是唯一保留的省钱项。
   assert.ok(source.includes('谷时折扣为你省下'), '谷时折扣必须保留')
 })
+
+test('跨端契约：两个"点一下就填进输入框"的按钮都必须不让焦点被抢走', () => {
+  // 竖条上的快捷按钮与回复动作行里的 @ 引用按钮是同一类控件：它们的全部工作就是
+  // 往草稿里写字，写完键盘必须还在输入框里（用户报过"点完光标就没了"）。
+  // 少写一处不会报错，只会在线上表现为"这个按钮点完要再点一下输入框"，所以钉住。
+  const source = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
+  const guarded = source.match(/onMouseDown: keepComposerFocus/g) ?? []
+  assert.equal(guarded.length, 2, '快捷按钮与引用按钮都要挂上 keepComposerFocus')
+  const focused = source.match(/if \(ok\) focusComposer\(\);/g) ?? []
+  assert.equal(focused.length, 2, '两处插入成功后都要把光标还回去')
+})
