@@ -250,3 +250,20 @@ test('快捷按钮：配置存在本地，读不出来时回落默认', () => {
     else globalThis.localStorage = saved
   }
 })
+
+test('渲染冒烟：竖条与设置页组件能被调用而不抛错', () => {
+  // 这条是补课：曾把竖条里的 `projected` 改名成 `fromProjection` 却漏改一处引用，
+  // 组件一渲染就抛 ReferenceError，React 把整条竖条卸载掉，界面上「什么都没有」，
+  // 查了很久。让组件真的被调用一次，这类错误就再也跑不掉。
+  const client = loadClient()
+  const rail = client.QuickActionsRail({
+    text: (key) => key,
+    inputActions: null,
+    sessionId: 's1',
+    useProjection: () => null,
+    commands: null,
+  })
+  assert.ok(rail !== null && typeof rail === 'object', '竖条要能渲染出元素')
+  const page = client.QuickActionsSettings({ text: (key) => key })
+  assert.ok(page !== null && typeof page === 'object', '设置页要能渲染出元素')
+})
