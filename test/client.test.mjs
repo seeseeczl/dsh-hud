@@ -242,3 +242,16 @@ test('设置页：配置值与编辑草稿之间的转换', () => {
   assert.equal(toConfigButton({}).icon, 'dot', '缺字段补默认')
   assert.equal(toConfigButton({ kind: 'nope' }).kind, 'prompt')
 })
+
+test('设置页：describe 的返回结构兼容（数组，或包一层）', () => {
+  const { quickDescriptorsOf, findQuickActionsDescriptor } = loadClient()
+  const unit = { schema: { properties: { enabled: {}, buttons: {} } }, value: { buttons: [] } }
+  assert.deepEqual(quickDescriptorsOf([unit]), [unit])
+  assert.deepEqual(quickDescriptorsOf({ namespaces: [unit] }), [unit])
+  assert.deepEqual(quickDescriptorsOf({ entries: [unit] }), [unit])
+  assert.deepEqual(quickDescriptorsOf(null), [])
+  assert.deepEqual(quickDescriptorsOf({ other: 1 }), [])
+  // namespace 字段名也容错
+  const found = findQuickActionsDescriptor([{ namespace: 'x', schema: { properties: { enabled: {}, buttons: {} } } }])
+  assert.equal(found.ns, 'x')
+})
