@@ -134,6 +134,10 @@
   同时把版本引用一处不漏地跟着改：`package.json` 的 `version` 与 `files`（加入 CHANGELOG.md）、
   `README.md`/`PUBLISHING.md` 的 tgz 示例、`docs/01-architecture` 的当前版本、`openspec/project.md`。
   **验收口径修正**：原写"首条对应 v1.0.0"，实际应为"首条对应当前最新发布"，否则每次发版都要改验收标准。
+  **2026-09-30 再次发布（1.2.0）**：`CHANGELOG.md` 新增 `[1.2.0]` 条目，四段（新增 / 改进 /
+  修复 / 移除）覆盖 v1.1.0 之后的 95 个提交；版本引用按上面同一份清单同步，并顺手更正了
+  `PUBLISHING.md` 里两处过时数字（手动挂载示例的文件名 `host-v3.js` → `host-v12.js`，
+  `files` 清单 6 个 → 19 个、tgz 约 200 KB → 约 240 KB）。
 
 ### T-07 节假日表外置与年度更新路径
 

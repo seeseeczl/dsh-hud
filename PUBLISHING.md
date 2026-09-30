@@ -19,10 +19,10 @@
 ```bash
 # ① 源机器：打包
 cd ~/.dsh/profiles/desktop/plugins/dsh-sym
-npm pack                     # 得到 dsh-sym-1.1.0.tgz（约 200 KB）
+npm pack                     # 得到 dsh-sym-1.2.0.tgz（约 240 KB）
 
 # ② 把 tgz 拷到目标机器，然后安装
-dsh plugin --profile desktop add ./dsh-sym-1.1.0.tgz
+dsh plugin --profile desktop add ./dsh-sym-1.2.0.tgz
 ```
 
 `dsh` 可执行文件在 `…/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh`，
@@ -42,7 +42,7 @@ dsh plugin --profile desktop add /path/to/dsh-sym
 
 ```bash
 cd ~/.dsh/profiles/desktop/plugins/dsh-sym
-git init && git add -A && git commit -m "dsh-sym 1.1.0"
+git init && git add -A && git commit -m "dsh-sym 1.2.0"
 git remote add origin git@github.com:<你>/dsh-sym.git && git push -u origin main
 
 # 目标机器
@@ -88,7 +88,7 @@ peer 版本必须与目标 DSH 完全一致（例如运行时是 `0.2.0-rc.2`，
 - [x] `dsh.bundle.patch` 指向 `cordis.patch.yml`，后者用**裸包名** insert 自己
 - [x] `exports["./client"]` 指向 `lib/client.js`（浏览器侧产物，`window.__ModuleLoader__` 格式）
 - [x] 零依赖：宿主侧只用 `node:fs` / `node:path` / `node:url`，浏览器侧只用平台自带的 `react`
-- [x] `npm pack` 的 `files` 清单只含必要文件（6 个）
+- [x] `npm pack` 的 `files` 清单只含必要文件（19 个，约 240 KB）
 - [ ] 公开前把 README 里与本机相关的路径、备份目录名清掉或通用化
 - [ ] `npm pack --dry-run` 再看一眼清单
 - [ ] 真正发布前想好包名（重名会被 npm 拒绝）
@@ -100,7 +100,7 @@ peer 版本必须与目标 DSH 完全一致（例如运行时是 `0.2.0-rc.2`，
 ```yaml
 - insert:
     - id: session-cost
-      name: '/绝对路径/dsh-sym/lib/host-v3.js'
+      name: '/绝对路径/dsh-sym/lib/host-v12.js'
 ```
 
 这正是本机当前使用的形态（见 `~/.dsh/profiles/desktop/cordis.patch.yml`）。

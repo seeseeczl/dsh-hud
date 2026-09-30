@@ -11,7 +11,7 @@
 - 建立日期：2026-09-30
 - Profile：`core` + `ui` + `service`
 - 项目根：`~/.dsh/profiles/desktop/plugins/dsh-sym`
-- 当前版本：`1.1.0`（未发布 npm；经 GitHub Release 分发，变更记录见 `CHANGELOG.md`）
+- 当前版本：`1.2.0`（未发布 npm；经 GitHub Release 分发，变更记录见 `CHANGELOG.md`）
 
 ---
 
