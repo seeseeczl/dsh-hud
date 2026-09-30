@@ -276,3 +276,27 @@ test('导入：接受 { buttons } 与裸数组，坏文件返回 null', () => {
   assert.equal(parseQuickActionsFile('{"buttons":[]}'), null, '空的导入等于没内容')
   assert.equal(parseQuickActionsFile('{"buttons":"nope"}'), null)
 })
+
+test('显示项：三个开关默认全开，读写往返正确，坏值回落全开', () => {
+  const { readDisplayOptions, writeDisplayOptions } = loadClient()
+  const saved = globalThis.localStorage
+  const store = new Map()
+  globalThis.localStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => { store.set(k, String(v)) },
+    removeItem: (k) => { store.delete(k) },
+  }
+  try {
+    assert.deepEqual(readDisplayOptions(), { balance: true, cost: true, memory: true })
+    writeDisplayOptions({ balance: false, cost: true, memory: false })
+    assert.deepEqual(readDisplayOptions(), { balance: false, cost: true, memory: false })
+    // 只关心显式 false：别的值都当"开"
+    store.set('dsh-sym.display-options', '{"balance":"nope"}')
+    assert.deepEqual(readDisplayOptions(), { balance: true, cost: true, memory: true })
+    store.set('dsh-sym.display-options', '{ 坏的 json')
+    assert.deepEqual(readDisplayOptions(), { balance: true, cost: true, memory: true })
+  } finally {
+    if (saved === undefined) delete globalThis.localStorage
+    else globalThis.localStorage = saved
+  }
+})
