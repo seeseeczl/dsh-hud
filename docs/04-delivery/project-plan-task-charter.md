@@ -210,6 +210,61 @@
 
 ---
 
+### T-13 补齐 project-architect 的 references（8 份）
+
+- **输入**：`SKILL.md` 第 27、91 行的引用清单；上游文档附录 B
+- **依赖**：无
+- **主要模块**：skill 目录（**非本项目仓库**）
+- **产物**：`references/{kickoff-and-architecture,governance-and-traceability,module-quality-and-regression,security-operations-and-release,toolchain-and-ui,audit-workflow,audit-checklists}.md`
+- **背景**：官方 `openai/skills` 仓库的 39 个 curated skill **不含**这四个（已核实），故无原版可拉取，只能按其正文方法论重新撰写
+- **验收**：每份文件存在，且正文里每一处 `references/xxx.md` 引用都能解析到真实文件
+- **命令**：`cd ~/.agents/skills/project-architect && for f in $(grep -o "references/[a-z-]*\.md" SKILL.md | sort -u); do test -f "$f" || echo "断链: $f"; done`
+- **预期**：无断链输出
+- **停止条件**：发现正文某处引用的规范与前文自相矛盾 → 停下出 CR，不擅自取舍
+- **回滚**：删除新增的 references 目录
+- **时间线**：待回写
+
+### T-14 补齐 adversarial-audit 与 first-principles 的 references（共 3 份，1 份共用）
+
+- **输入**：两个 `SKILL.md` 的引用清单
+- **依赖**：无
+- **主要模块**：skill 目录（**非本项目仓库**）
+- **产物**：`adversarial-audit/references/{attack-playbook,audit-report-template}.md`、两者共用的 `optimization-plan-template.md`
+- **验收**：两处 `references/optimization-plan-template.md` 引用均可解析；两份模板的字段与各自 `SKILL.md` 的"强制落盘"要求一一对应
+- **命令**：`for d in adversarial-audit first-principles; do cd ~/.agents/skills/$d; for f in $(grep -o "references/[a-z-]*\.md" SKILL.md | sort -u); do test -f "$f" || echo "断链 $d: $f"; done; done`
+- **预期**：无断链输出
+- **停止条件**：共用模板在两处的字段要求冲突 → 停下出 CR
+- **回滚**：删除新增文件
+- **时间线**：待回写
+
+### T-15 补齐 personal-knowledge-base 的 references（1 份）
+
+- **输入**：`SKILL.md`（281 行）的引用清单
+- **依赖**：无
+- **主要模块**：skill 目录（**非本项目仓库**）
+- **产物**：`references/knowledge-base-map.md` —— 知识库的地图/索引约定
+- **验收**：文件存在且与正文提到的 7 处"模板"要求一致
+- **命令**：`test -f ~/.agents/skills/personal-knowledge-base/references/knowledge-base-map.md && grep -c "" ~/.agents/skills/personal-knowledge-base/references/knowledge-base-map.md`
+- **预期**：行数 > 0
+- **停止条件**：发现该 skill 依赖 Obsidian 的特定目录约定 → 先向用户确认库根路径
+- **回滚**：删除该文件
+- **时间线**：待回写
+
+### T-16 openspec CLI 的可用性确认
+
+- **输入**：`openspec/project.md` 的工具登记表
+- **依赖**：无
+- **主要模块**：文档
+- **背景**：`openspec` CLI 不在 PATH，但 `~/.config/openspec/config.json` 存在（历史使用痕迹）。若 CLI 可安装，则校验可从人工升级为命令
+- **产物**：一份结论 —— 安装来源、命令形态，或明确记录"维持人工比对"
+- **验收**：结论中写明**真实尝试过的命令**与输出；不得只写推测
+- **命令**：`command -v openspec; ls ~/.config/openspec`
+- **预期**：有明确结论
+- **停止条件**：需要联网安装且来源不明 → 停下来问用户，不擅自装
+- **回滚**：仅文档改动
+- **时间线**：待回写
+
+
 ## 4. 风险登记
 
 | ID | 风险 | 影响 | 缓解 |
@@ -221,6 +276,8 @@
 | R-05 | 价目或汇率长期未复核导致计费偏差 | 中 | T-12 |
 | R-06 | `view` 缓存被不当绕过导致无限重渲染 | 高 | §5.2 的硬约束；已在 `.project-architect.json` 记录 |
 | R-07 | 技能附件缺失，无机器校验背书 | 中 | 人工对照；本文件与上游文档均显式标注 |
+| R-08 | 四个 skill 共有 6+11 处附件引用无法解析，任何依赖它们的会话都会中途卡住 | 中 | T-13~T-15 |
+| R-09 | `openspec` / `codegraph` CLI 均不可用，治理只能人工执行 | 中 | 已走 `rg` 降级并实测；T-16 |
 
 ---
 
