@@ -1,8 +1,12 @@
-# dsh-hud
+# dsh-sym
 
 > **给 DeepSeek Harness 的界面读数层。**
 > 实时花费、账户余额、峰谷时段、引用回复 —— 四件事直接叠在 DSH 原生界面上，
 > 不新增面板，不打断工作流。
+
+**为什么叫 `dsh-sym`**：`sym` 取自 **symbiote（共生体）** —— 就是毒液（Venom）的本体。
+共生体的行为是附着在宿主身上、与宿主共生、把宿主的能力放大；这个名字记录的正是这个插件
+和 DSH 的关系，也刻意不限定功能范围 —— 它会长出什么，不由名字预先决定。
 
 <p align="center">
   <img src="assets/composer-cost.png" width="860" alt="输入框状态栏末尾的两个人民币费用读数">
@@ -146,16 +150,16 @@
 
 ```bash
 # npm 包（如果已发布）
-dsh plugin --profile desktop add dsh-hud
+dsh plugin --profile desktop add dsh-sym
 
 # 本地目录
-dsh plugin --profile desktop add /绝对路径/dsh-hud
+dsh plugin --profile desktop add /绝对路径/dsh-sym
 
 # tarball
-dsh plugin --profile desktop add /绝对路径/dsh-hud-1.0.0.tgz
+dsh plugin --profile desktop add /绝对路径/dsh-sym-1.0.0.tgz
 
 # 或从 git
-dsh plugin --profile desktop add github:seeseeczl/dsh-hud
+dsh plugin --profile desktop add github:seeseeczl/dsh-sym
 ```
 
 也可以在 GUI 里走「设置 → 插件 → 安装」。
@@ -165,14 +169,14 @@ dsh plugin --profile desktop add github:seeseeczl/dsh-hud
 不装进 `node_modules`，直接让 profile 的 `cordis.patch.yml` 指向本地文件：
 
 ```yaml
-- id: hud-cost
-  name: 'file:///绝对路径/dsh-hud/lib/host-v4.js'
+- id: sym-cost
+  name: 'file:///绝对路径/dsh-sym/lib/host-v4.js'
 ```
 
 再在同一个文件末尾确保它是启用的：
 
 ```yaml
-- id: hud-cost
+- id: sym-cost
   disabled: false
 ```
 
@@ -317,7 +321,7 @@ cordis.patch.yml   组合包补丁（让 profile 一次性装好）
 - **宿主折叠逻辑**：直接 `import` `lib/host-v4.js`，喂构造事件，断言投影状态
 - **客户端组件**：用一个最小的 React hooks 运行时（`useState` / `useEffect` / `useRef`）
   直接调用组件函数，断言渲染出的元素树和插入内容
-- **端到端**：`curl` 取页面里 `plugins/??dsh-hud/client.js` 的 bundle，
+- **端到端**：`curl` 取页面里 `plugins/??dsh-sym/client.js` 的 bundle，
   确认各项注册都在；再用 CDP 驱动一个 headless 页面点击真实按钮
 
 ---
