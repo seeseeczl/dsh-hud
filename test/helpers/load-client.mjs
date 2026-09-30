@@ -20,7 +20,14 @@ const CLIENT = join(here, '..', '..', 'lib', 'client.js')
 /** Minimal `react` stand-in: enough for module bodies, never for rendering. */
 function fakeReact() {
   const noop = () => {}
+  // 错误边界是 class 组件，所以替身必须提供 Component（只用到构造与 props）。
+  class Component {
+    constructor(props) {
+      this.props = props
+    }
+  }
   return {
+    Component,
     createElement: (type, props, ...kids) => ({ type, props, kids }),
     useState: (init) => [typeof init === 'function' ? init() : init, noop],
     useRef: (init) => ({ current: init }),
