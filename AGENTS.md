@@ -179,7 +179,9 @@ registerSlotCell(ctx, name, id, order, component) -> disposer | null
 
 ## 环境事实（省得重新查）
 
-- `DSH_HOME=/Users/long/.dsh`；本项目位于 `~/.dsh/profiles/desktop/plugins/dsh-sym`
+- `DSH_HOME=/Users/long/.dsh`；本项目位于 `~/GitHub/DSH-Sym`（2026-09-30 搬出 profile 的
+  `plugins/` 目录）。它靠 `~/.dsh/profiles/desktop/cordis.patch.yml` 里的 `file://` 条目挂载 ——
+  **换路径后必须重启 App**，宿主手里的还是旧绝对路径
 - DSH 的 skill 扫描根：`<项目根>/.dsh/skills`(100) → `<项目根>/.agents/skills`(200) →
   `custom`(300) → `$DSH_HOME/skills`(400) → `~/.agents/skills`(500)
 - **技能目录是会话开始时的快照**，新建/复制进去的技能**当前会话看不到**，需开新会话

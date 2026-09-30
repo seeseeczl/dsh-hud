@@ -18,7 +18,7 @@
 
 ```bash
 # ① 源机器：打包
-cd ~/.dsh/profiles/desktop/plugins/dsh-sym
+cd ~/GitHub/DSH-Sym
 npm pack                     # 得到 dsh-sym-1.2.0.tgz（约 240 KB）
 
 # ② 把 tgz 拷到目标机器，然后安装
@@ -41,7 +41,7 @@ dsh plugin --profile desktop add /path/to/dsh-sym
 ### 方式三：git 仓库
 
 ```bash
-cd ~/.dsh/profiles/desktop/plugins/dsh-sym
+cd ~/GitHub/DSH-Sym
 git init && git add -A && git commit -m "dsh-sym 1.2.0"
 git remote add origin git@github.com:<你>/dsh-sym.git && git push -u origin main
 

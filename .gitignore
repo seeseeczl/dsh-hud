@@ -16,3 +16,7 @@ yarn.lock
 
 # 本地覆盖：prices.json 允许提交，但个人改过的副本不要进仓库
 prices.local.json
+
+# 本机归档：开发期截图与笔记，只留在本地，不公开
+# （来历见该目录内的 README.md；仓库是公开的，里面含本机绝对路径）
+docs/07-archive/

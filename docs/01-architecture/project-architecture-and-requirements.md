@@ -10,7 +10,8 @@
 
 - 建立日期：2026-09-30
 - Profile：`core` + `ui` + `service`
-- 项目根：`~/.dsh/profiles/desktop/plugins/dsh-sym`
+- 项目根：`~/GitHub/DSH-Sym`（2026-09-30 从 profile 的 `plugins/` 目录搬出；插件仍由
+  `~/.dsh/profiles/desktop/cordis.patch.yml` 里的 `file://` 条目挂载，换路径后需重启 App）
 - 当前版本：`1.2.0`（未发布 npm；经 GitHub Release 分发，变更记录见 `CHANGELOG.md`）
 
 ---
@@ -26,7 +27,7 @@
 | 首个核心场景 | 会话进行中，随时看到花费 / 余额 / 时段，不必离开对话去查 | 已实现并验证 |
 | 平台 | macOS + DSH Desktop（Electron）；DSH 亦有 Web 形态 | 运行环境实测 |
 | 关键约束 | 零依赖、无构建步骤、不替换官方组件、不新增客户端→宿主通道 | 见 §5、§7 |
-| 项目根目录 | `~/.dsh/profiles/desktop/plugins/dsh-sym` | 本次盘点 |
+| 项目根目录 | `~/GitHub/DSH-Sym` | 本次盘点 |
 | 写入授权 | **已授权**：可创建治理文件并提交到仓库 | 用户明确授权 |
 
 ### 1.2 假设（假设必须显式标注，不得伪装成约束）
