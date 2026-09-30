@@ -184,6 +184,15 @@ registerSlotCell(ctx, name, id, order, component, extra?) -> disposer | null
 - `DSH_HOME=/Users/long/.dsh`；本项目位于 `~/GitHub/DSH-Sym`（2026-09-30 搬出 profile 的
   `plugins/` 目录）。它靠 `~/.dsh/profiles/desktop/cordis.patch.yml` 里的 `file://` 条目挂载 ——
   **换路径后必须重启 App**，宿主手里的还是旧绝对路径
+- **`file://` 挂载 ≠ 不是插件**（2026-10-01 查 asar 证实）：loader 里有 `nearestPackage()`
+  （asar 偏移 18777873），拿到 `file://` 入口后会**向上找最近的 `package.json`** 当包根。
+  所以 `file:///…/lib/host-v12.js` 最终仍被认成包 `dsh-sym`，客户端半边照样走
+  `exports["./client"]` + `dsh.client` 解析 —— 与包安装的**唯一**差别是入口由绝对路径给出，
+  而不是由 profile 的 `node_modules` 解析。
+  选它是为了开发期的迭代速度：改 `lib/client.js` 刷新即生效、改 `prices.json` 即时生效、
+  改宿主只要 `reload-host.mjs` 换名 + 停用启用；走 tarball 则每次都要 pack → 安装 → 重启。
+  包形态早就备好（`dsh.bundle.patch` + 包内 `cordis.patch.yml` 用裸包名 insert）——
+  真要切成包安装时**必须先删掉 profile 里那条 `file://`**：两条都用 `id: sym-cost`，并存会撞 id。
 - DSH 的 skill 扫描根：`<项目根>/.dsh/skills`(100) → `<项目根>/.agents/skills`(200) →
   `custom`(300) → `$DSH_HOME/skills`(400) → `~/.agents/skills`(500)
 - **技能目录是会话开始时的快照**，新建/复制进去的技能**当前会话看不到**，需开新会话
