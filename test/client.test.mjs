@@ -300,3 +300,13 @@ test('显示项：三个开关默认全开，读写往返正确，坏值回落�
     else globalThis.localStorage = saved
   }
 })
+
+test('指令下拉：解析 commands.list 的各种返回形状', () => {
+  const { commandNamesOf } = loadClient()
+  assert.deepEqual(commandNamesOf(['compact', '/model']), ['/compact', '/model'], '字符串元素')
+  assert.deepEqual(commandNamesOf([{ name: 'compact' }, { name: '/model' }]), ['/compact', '/model'], '描述符元素')
+  assert.deepEqual(commandNamesOf({ ok: true, value: [{ name: 'compact' }] }), ['/compact'], '{ ok, value } 包装')
+  assert.deepEqual(commandNamesOf(['/a', '/a', 'a']), ['/a'], '去重')
+  assert.deepEqual(commandNamesOf(null), [])
+  assert.deepEqual(commandNamesOf({ nope: 1 }), [])
+})
