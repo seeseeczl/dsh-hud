@@ -16,30 +16,41 @@
 1. **插入预设 prompt**：把一段文字放进输入框草稿，可选直接发送
 2. **执行命令**：执行 `/compact` 这类 slash 命令——**直接对 agent 执行，不会变成模型消息**
 
-## 2. 位置（已验证）
+## 2. 位置（含一次返工）
 
-槽位 `conversation.input.dock`：
+**最终形态：侧栏右缝里的竖排图标条（候选 D）。**
+
+实现上它是两件事的组合：
+
+- **注册**仍在会话作用域的 `conversation.input.dock` —— 只有会话作用域才拿得到
+  `inputActions`、`sessionId`、`useProjection`（`shell.overlay` 是 root 作用域，没有这些）。
+- **元素**是 `position: fixed`，横向定位到侧栏列的右边缘 +5px（避开官方那 8px 拖拽手柄的
+  右半），纵向居中。它**完全脱离文档流**，所以既不占 dock 的位置，也不会挤走任何人。
 
 | 项 | 实测值 |
 |---|---|
-| 类型 | `list`，session scope |
-| 官方用途原文 | "Full-width entries above the composer card" |
-| owner props | `InputZone { session, input }` |
-| standard props | 含 `inputActions`、`useInput`、`useProjection`、`useChat`、`sessionId` |
-| 现有占用者 | `todo`(0) · `goal`(10) · `queue`(20) |
+| 注册槽位 | `conversation.input.dock`（list，session scope） |
+| 该槽 standard props | 含 `inputActions`、`useInput`、`useProjection`、`useChat`、`sessionId` |
+| 同槽其他占用者 | `todo`(0) · `goal`(10) · `queue`(20)（我们的元素是 fixed，不参与堆叠） |
+| 定位依据 | `document.querySelector('[class*="_sidebarCol"]').getBoundingClientRect().right` |
+| 跟随 | `ResizeObserver`（侧栏折叠/拖动改宽）+ `window resize` |
 
-这块是**多条堆叠**的公共区域，我们是第 4 条，靠 `order` 定位。那三条多数时候「有内容才渲染」，所以日常只有我们这一条。
+### 为什么撤掉候选 A（2026-09-30 实机反馈）
 
-### 位置决策（2026-09-30）
+A（`conversation.input.dock` 的横排文字条）先做出来并被否决，原因是**位置冲突**：
 
-候选都实地查过（截图标注见会话记录），最终选 A：
+- 这块是**公共堆叠区**，我们的条占了待办卡的位置；
+- 待办卡出现后又被顶上去，**把上面的用时读数盖住了**。
+
+D 的代价是要量 DOM 定位（`_sidebarCol` 的 class 是哈希前缀，官方没承诺稳定），
+换来的是不占任何布局位置。找不到侧栏列时**安静退场**并记一条降级日志，不猜位置。
 
 | 候选 | 槽位 | 结论 |
 |---|---|---|
-| **A 输入框上方整宽条** | `conversation.input.dock`（list，空位） | **采用**：空间最大、可放图标+文字；官方加法位 |
+| **D 侧栏右边那条缝** | 会话槽注册 + `position: fixed` | **采用** |
+| A 输入框上方整宽条 | `conversation.input.dock`（list） | 做过，占位与堆叠不可接受，已撤 |
 | F 会话头部右侧工具区 | `conversation.session.header.utilities`（list） | 已有 3 个官方项占着（`open-in-app`、`schedule-catalog`、`session-log-download`），空间窄 |
 | B / C 输入框工具行左右端 | `conversation.input.left` / `.right`（list，空位） | 位置顺手但很窄，只够纯图标 |
-| D 侧栏右边那条缝 | `shell.overlay` 浮层 | 唯一能做竖排；但要读 DOM 跟随侧栏宽度、避开 8px 拖拽手柄 |
 | G 「对话/轨迹」行右侧 | **无槽位** | 官方那行只渲染 tab 按钮，右侧是纯空白；想占只能浮层绝对定位 |
 
 **关于 G 的结论一并记下**（避免以后重复调研）：会话头部是两行网格，`tabs` 那行 `grid-column: 1/-1` 只 map 出 tab 按钮，**没有声明任何 slot**；同带的官方口子是 `titleRow` 里的 `utilities`（右对齐、list）与 `corner`（`single`，已被占用，只能替换不能新增）。
@@ -105,10 +116,16 @@
 
 ## 6. 界面
 
-- 一条整宽横条，**按钮组居中**：不论几个按钮，都从中心往两边排（`justify-content: center` + `flex-wrap`）
-- 数量多到一行放不下时换行，换行后仍然居中
-- 按钮 = 文字（图标待后续）；tooltip 显示标签与动作摘要（命令名 / prompt 全文）
-- **配置为空时不渲染任何节点**（本项目的硬规矩：插件缺席时官方布局一个像素都不变）
+- **竖排图标条**，贴侧栏右缝；按钮是**纯图形**（无文字），每个 28×28，图标 16×16
+- **纵向居中，从中间往两边排**（`top: 50%` + `translateY(-50%)` + `flex-direction: column`），
+  和聊天区右侧的对话轮次刻度是同一种对齐观感：不论几个按钮，都以中心为基准上下展开
+- 图标按按钮 `id` 取（`compact` 压缩、`review` 放大镜、`regression` 循环箭头、
+  `explain` 问号圆圈、`commit-message` 文稿），认不出的 id 退化成中性圆点
+- tooltip 与 `aria-label` 用 `label` 字段（文字不上屏，但键盘与读屏仍可达）
+- 点击反馈用颜色而不是文字：成功转绿、失败/未识别转红、`remote.commands` 不可用时转灰
+  （`data-state` 驱动，2 秒后恢复）
+- **配置为空时不渲染任何节点**（本项目的硬规矩：插件缺席时官方布局一个像素都不变）。
+  量不到侧栏列时同样不渲染，并记一条 `[dsh-sym] quick:sidebar 降级` 日志
 
 ## 7. 配置界面 —— 悲观结论撤回（已验证）
 
