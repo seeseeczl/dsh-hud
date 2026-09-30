@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   isPeakTime, expandQuoteMarks, rememberProse, proseOfMessage, readProcessMemory,
   DEEPSEEK_CNY, DEFAULT_USD_TO_CNY,
-} from '../lib/host-v6.js'
+} from '../lib/host-v7.js'
 
 /** Beijing wall-clock on 2026-09-30 (a Wednesday) as epoch ms. */
 const bj = (y, m, d, hh, mm = 0) => Date.UTC(y, m - 1, d, hh - 8, mm)
