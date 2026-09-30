@@ -25,8 +25,10 @@ const DEEPSEEK_RATES = {
 
 /**
  * 一条 DeepSeek 模型的投影记录：峰时与谷时各花 0.64 元。
- * 缓存省下 = 峰 1M ×(2−0.04) + 谷 2M ×(1−0.02) = 3.92 元；
  * 谷时折扣省下 = 谷时实付 0.64 元；可挪动的峰时花费 = 0.64 / 2 = 0.32 元。
+ *
+ * 这里故意留着 2.4M 的缓存命中量：缓存省下已从界面上整体撤掉，
+ * 这些 token 现在是"出现了也不该产生任何省下文案"的反例。
  */
 function deepseekEntry() {
   return {
@@ -51,7 +53,7 @@ function deepseekEntry() {
   }
 }
 
-test('describeScope：峰谷混合的 DeepSeek 会话，拆分与两项省钱都在', () => {
+test('describeScope：峰谷混合的 DeepSeek 会话，拆分与谷时省钱都在', () => {
   const { describeScope } = loadClient()
   const scope = { requests: 8, peakRequests: 3, models: [deepseekEntry()], unpriced: [] }
   const text = describeScope(scope, undefined, '本会话总费用 1.28 元')
@@ -67,10 +69,10 @@ test('describeScope：峰谷混合的 DeepSeek 会话，拆分与两项省钱都
   assert.match(text, /^ {2}谷时 ¥0\.640$/m)
   assert.match(text, /峰时改到谷时，还能再省 ¥0\.320/)
 
-  // FM-006：两项省钱。
-  assert.match(text, /缓存为你省下 ¥3\.92/)
-  assert.match(text, /这些 token 若未命中缓存，会按未命中价计费/)
+  // FM-006：只剩谷时折扣这一项省钱。
   assert.match(text, /谷时折扣为你省下 ¥0\.640/)
+  assert.doesNotMatch(text, /缓存为你省下/, '缓存省下已整体撤掉，命中量再大也不出这行')
+  assert.doesNotMatch(text, /未命中价计费/, '连同那条反事实的解释也一并撤掉')
 })
 
 test('describeScope：非峰谷定价的厂商不产生「挪到谷时」的数字，也不产生谷时折扣', () => {

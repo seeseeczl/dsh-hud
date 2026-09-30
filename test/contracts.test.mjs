@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   PROJECTION_KEY, QUOTE_MARK_PREFIX, QUOTE_MARK_ID_LENGTH, QUICK_ACTIONS_KEY,
   DEFAULT_QUICK_ACTIONS, sessionCostProjection, rememberProse, expandQuoteMarks,
@@ -67,4 +68,16 @@ test('跨端契约：客户端对同一条消息两次生成的标记完全相�
   const client = loadClient()
   const id = 'ABCDEF12-3456-7890-abcd-ef1234567890'
   assert.equal(client.quoteMark(id), client.quoteMark(id.toLowerCase()), '大小写不同的同一个 id 必须生成同一标记')
+})
+
+test('跨端契约：缓存省下的文案与数据属性不得回流', () => {
+  // 「缓存为你省下」连同它的产物「本来要花」已被用户否决并整体撤掉：
+  // 那个数字拿命中 token 乘（未命中价 − 命中价），假设没有缓存时照样按未命中价计费。
+  // 文案散在 zh / en 两份词典和面板行里，删一处漏一处不会报错，所以在这里钉住。
+  const source = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
+  for (const gone of ['缓存为你省下', 'cacheSaved', '本来要花', 'wouldHaveCost', 'data-sym-cache-saved']) {
+    assert.ok(!source.includes(gone), `客户端不该再出现 ${gone}：缓存省下已整体移除`)
+  }
+  // 谷时折扣是唯一保留的省钱项。
+  assert.ok(source.includes('谷时折扣为你省下'), '谷时折扣必须保留')
 })

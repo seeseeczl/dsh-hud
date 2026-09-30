@@ -79,7 +79,7 @@ Git        干净（0 未提交）· main · git@github.com:seeseeczl/dsh-sym.gi
 | FR-03 | 侧边栏账户行右侧显示 DeepSeek 账户余额 | 已实现 | `client.js` `createBalanceCell` |
 | FR-04 | 品牌行后显示峰时/谷时状态灯，并按固定边界刷新 | 已实现 | `client.js` `installPeakTag` |
 | FR-05 | 每条回复的动作行提供"引用此回复作为上下文"按钮 | 已实现 | `client.js` `QuoteAction`；宿主 `agent/pre-step` 展开 |
-| FR-06 | 点击花费金额弹出面板：实际支出、缓存省下、谷时省下、本来要花、峰谷拆分、本次任务 | 已实现 | `client.js` `CostPanel` |
+| FR-06 | 点击花费金额弹出面板：实际支出、谷时省下、峰谷拆分、本次任务 | 已实现 | `client.js` `CostPanel`（缓存省下与「本来要花」已按用户要求移除） |
 | FR-07 | 峰时用量给出"改到谷时可再省多少" | 已实现 | `client.js` `tierSpend` |
 | FR-08 | 状态栏显示 DSH 进程常驻内存（rss） | 已实现 | 宿主 `readProcessMemory` + `client.js` `formatBytes` |
 | FR-09 | 回复中的文件链接支持右键：复制路径、在访达中显示 | 已实现 | `client.js` `LinkContextMenu` |
@@ -216,7 +216,7 @@ Git        干净（0 未提交）· main · git@github.com:seeseeczl/dsh-sym.gi
 | FR-03 | `client.js` | 线上实测：¥429.70 正常显示；未登录时不渲染 |
 | FR-04 | `client.js` | 伪造时钟跨边界实测：峰 `rgb(245,158,11)` / 谷 `rgb(34,197,94)` |
 | FR-05 | 两端 | 单测：展开逻辑与 6 类边界 |
-| FR-06/07 | `client.js` | 单测：缓存省下与谷时省下各边界；线上实测面板内容 |
+| FR-06/07 | `client.js` | 单测：谷时省下各边界、缓存省下不再出现（反例守卫）；线上实测面板内容 |
 | FR-08 | 两端 | 线上实测：`349618176` 字节 → `333M` |
 | FR-09 | `client.js` | 线上实测：右键弹出菜单、点复制有反馈、无异常 |
 
