@@ -20,6 +20,7 @@
     "lib/client.js",
     "lib/move-session.js",
     "lib/prices.json",
+    "test",
     "cordis.patch.yml",
     "assets",
     "README.md",
@@ -60,5 +61,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
   }
 }
