@@ -207,3 +207,35 @@ registerSlotCell(ctx, name, id, order, component) -> disposer | null
 宿主不会计算客户端视图、也不会缓存它，于是该 key 既不在 baseline 也不在增量里 ——
 界面表现是**什么都不发生且没有任何报错**。`sessionCost` 之所以没暴露这个问题，是因为它
 每轮都在变。守卫见 `test/host.test.mjs` 的「state 在首个事件后只变一次」。
+
+**槽的 `locale` 声明决定条目是否被渲染，而且两边规则相反**：
+
+- owner **投影 locale** 的槽（standardProps 里有 `t`，例如 `conversation.input.dock`、
+  `conversation.composer.dock`）：条目**必须带 `locale: NS`** 注册，去掉就不渲染。
+- owner **不投影 locale** 的槽（例如 `settings.section`、`conversation.session.header.utilities`）：
+  条目**不能带 locale**，要用 `locale: null`（`registerSlotCell` 会删掉该字段），
+  带了就不渲染。
+
+两种写错的界面表现完全一样：inspect 里 occupant 存在、`active: false`，界面上什么都没有。
+另外这两个"不投影 locale"的槽里拿不到 `t`，文案要么走自己的字典，要么用
+`localeLabel(ctx, key)` 通过 props 传进去。
+
+**`remote` 的 namespace 必须声明注入**：直接 `ctx.get("remote").settings` 会抛
+`cannot get property "remote.settings" without inject`。要用
+`ctx.inject(["remote", "remote.<ns>"], (child) => ...)`，拿不到时降级而不是整块不注册。
+
+**remote 的方法要保持方法调用形式**：`settings.describe()` 可以，
+`const d = settings.describe; d()` 会丢 `this` 并抛错。
+
+**改名之后必须全局搜旧名**：把竖条里的 `projected` 改成 `fromProjection` 时漏改一处
+`data-*` 属性，组件每次渲染都抛 ReferenceError，React 把整条竖条卸载 —— 现象与"槽不渲染"
+一模一样（界面上什么都没有、没有报错浮出来），为此查了很久。所以补了渲染冒烟测试：
+`test/client.test.mjs` 会真的调用一次竖条与设置页组件。
+
+**`.volatile()` 不是"标记为可编辑"**：它是"该字段的值由设置服务托管"，
+实测会让值变成 `{}`（`new Config({})` → `{ enabled: {}, buttons: {} }`）。
+设置页编辑普通配置不要走这条路。
+
+**`settings.describe()` 的返回值是两层包装**：`{ ok, value: { writable, hasDocument,
+namespaces: [...] } }`，且 descriptor 里的 `schema` 是 schemastery 内部形式（`uid`/`refs`），
+不是 JSON Schema —— 想按结构识别自己的配置项会失败，按 `ns` 认更可靠。

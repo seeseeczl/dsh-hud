@@ -30,9 +30,9 @@
 
 | 项 | 实测值 |
 |---|---|
-| 注册槽位 | `conversation.session.header.utilities`（list，session scope） |
+| 注册槽位 | `conversation.input.dock`（list，session scope；**必须带 `locale`**，见 AGENTS.md） |
 | 该槽 standard props | 含 `inputActions`、`useInput`、`useProjection`、`useChat`、`sessionId` |
-| 同槽其他占用者 | `open-in-app`(-10) · `schedule-catalog`(-5) · `session-log-download`(0)（我们的元素是 fixed，不参与排布） |
+| 同槽其他占用者 | `todo`(0) · `goal`(10) · `queue`(20)（我们的元素是 fixed，不参与排布） |
 | 定位依据 | `document.querySelector('[class*="_sidebarCol"]').getBoundingClientRect().right` |
 | 跟随 | `ResizeObserver`（侧栏折叠/拖动改宽）+ `window resize`，回调里**直接改 `style.left`** |
 
