@@ -272,3 +272,11 @@ test('设置页：schema 结构认不出时，按 entry id（sym-cost）兜底',
   ])
   assert.equal(bySchema.ns, 'other-entry')
 })
+
+test('设置页：describe 返回 { ok, value } 包装时也能取出 descriptor', () => {
+  const { quickDescriptorsOf } = loadClient()
+  const unit = { ns: 'sym-cost', schema: { properties: { enabled: {}, buttons: {} } }, value: {} }
+  assert.deepEqual(quickDescriptorsOf({ ok: true, value: [unit] }), [unit])
+  assert.deepEqual(quickDescriptorsOf({ value: [unit] }), [unit])
+  assert.deepEqual(quickDescriptorsOf({ data: [unit] }), [unit])
+})
