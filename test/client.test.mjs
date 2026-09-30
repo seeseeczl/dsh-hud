@@ -196,3 +196,20 @@ test('降级日志：每个来源只记录一次，不随渲染刷屏（P2-01）
   assert.match(warnings[0], /^\[dsh-sym\] slot:some\.slot#a 降级：注册被拒：boom$/)
   assert.match(warnings[1], /slot:some\.slot#b/)
 })
+
+test('quickButtonsOf：只保留能寻址的按钮，其余丢弃', () => {
+  const { quickButtonsOf } = loadClient()
+  assert.deepEqual(quickButtonsOf(null), [])
+  assert.deepEqual(quickButtonsOf(undefined), [])
+  assert.deepEqual(quickButtonsOf({}), [])
+  assert.deepEqual(quickButtonsOf({ buttons: 'nope' }), [])
+  const kept = quickButtonsOf({ buttons: [
+    { id: 'ok', label: '可用', kind: 'command', value: '/compact' },
+    { id: '', value: '/x' },
+    { id: 'no-value', value: '' },
+    null,
+    'junk',
+  ] })
+  assert.deepEqual(kept.map((button) => button.id), ['ok'])
+  assert.equal(kept[0].kind, 'command')
+})

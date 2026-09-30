@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import {
   isPeakTime, expandQuoteMarks, rememberProse, proseOfMessage, readProcessMemory,
   DEEPSEEK_CNY, DEFAULT_USD_TO_CNY,
-} from '../lib/host-v7.js'
+  QUICK_ACTIONS_KEY, DEFAULT_QUICK_ACTIONS, normalizeQuickActions, quickActionsProjection,
+} from '../lib/host-v8.js'
 
 /** Beijing wall-clock on 2026-09-30 (a Wednesday) as epoch ms. */
 const bj = (y, m, d, hh, mm = 0) => Date.UTC(y, m - 1, d, hh - 8, mm)
@@ -164,4 +165,54 @@ test('失败路径：引用标记格式不完整时不匹配', () => {
     const out = expandQuoteMarks([{ role: 'user', content: [{ type: 'text', text }] }])
     assert.equal(out, null, `「${text}」不应被视为有效标记`)
   }
+})
+
+// ---------------------------------------------------------------------------
+// 快捷按钮条（conversation.input.dock 的那条横条）
+// ---------------------------------------------------------------------------
+
+test('快捷按钮：内置清单每条都能寻址，且命令按钮的值是 slash 命令', () => {
+  assert.ok(DEFAULT_QUICK_ACTIONS.length >= 3 && DEFAULT_QUICK_ACTIONS.length <= 8,
+    '先做三五个按钮看效果')
+  for (const button of DEFAULT_QUICK_ACTIONS) {
+    assert.equal(typeof button.id, 'string')
+    assert.ok(button.id.length > 0, 'id 不能为空')
+    assert.ok(button.label.length > 0, 'label 不能为空')
+    assert.ok(button.kind === 'prompt' || button.kind === 'command')
+    assert.ok(button.value.length > 0, 'value 不能为空')
+    if (button.kind === 'command') assert.match(button.value, /^\//, '命令按钮的值必须以 / 开头')
+  }
+  const ids = DEFAULT_QUICK_ACTIONS.map((button) => button.id)
+  assert.equal(new Set(ids).size, ids.length, 'id 不能重复')
+})
+
+test('快捷按钮：normalizeQuickActions 丢弃残缺记录而不整条失败', () => {
+  assert.equal(normalizeQuickActions(null), null)
+  assert.equal(normalizeQuickActions('nope'), null)
+  assert.equal(normalizeQuickActions({}), null, '没有 buttons 数组')
+  const out = normalizeQuickActions({ buttons: [
+    { id: 'a', label: 'A', kind: 'command', value: '/a' },
+    { id: '', value: '/x' },
+    { id: 'b', value: '' },
+    'junk',
+    { id: 'c', value: '一段预设' },
+  ] })
+  assert.deepEqual(out.buttons.map((button) => button.id), ['a', 'c'])
+  assert.equal(out.buttons[0].kind, 'command')
+  assert.equal(out.buttons[1].kind, 'prompt', 'kind 缺省时按 prompt 处理')
+  assert.equal(typeof out.buttons[0].icon, 'string')
+  // 也接受裸数组
+  assert.deepEqual(normalizeQuickActions([{ id: 'z', value: 'v' }]).buttons.map((b) => b.id), ['z'])
+})
+
+test('快捷按钮：投影视图按引用稳定（击穿 viewCache 会无限重渲染）', () => {
+  assert.equal(quickActionsProjection.key, QUICK_ACTIONS_KEY)
+  assert.equal(quickActionsProjection.stateVersion, 1)
+  const first = quickActionsProjection.wire.view({})
+  const second = quickActionsProjection.wire.view({})
+  assert.equal(first, second, 'view 必须返回同一引用')
+  assert.equal(first.buttons, DEFAULT_QUICK_ACTIONS)
+  const state = { any: 'state' }
+  assert.equal(quickActionsProjection.apply(state, { type: 'turn/start' }), state,
+    'apply 是恒等的：按钮来自配置，不来自会话日志')
 })

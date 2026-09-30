@@ -42,7 +42,7 @@
 - **跨端契约守卫**：投影 key 与引用标记格式在两端各持一份常量，由 `test/contracts.test.mjs`
   断言一致，并做「客户端写标记 → 宿主展开」的端到端验证
 - **宿主换名脚本化**：`scripts/reload-host.mjs`（默认 dry-run）自动换名并同步全部引用
-- 宿主入口 `lib/host-v6.js` → `lib/host-v7.js`。宿主代码不热重载，换名才会拿到新模块实例
+- 宿主入口 `lib/host-v6.js` → `lib/host-v8.js`。宿主代码不热重载，换名才会拿到新模块实例
 - 补齐 `data-sym-*` 观测标记，9 项能力全部可被脚本断言是否渲染
 - 移除未接通的会话移动实现（无调用方，且当前架构下拿不到客户端→宿主通道），
   原始代码与设计要点移入 `docs/01-architecture/adr-003-session-move-not-wired.md`

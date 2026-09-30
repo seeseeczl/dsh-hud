@@ -1,9 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  PROJECTION_KEY, QUOTE_MARK_PREFIX, QUOTE_MARK_ID_LENGTH,
+  PROJECTION_KEY, QUOTE_MARK_PREFIX, QUOTE_MARK_ID_LENGTH, QUICK_ACTIONS_KEY,
   sessionCostProjection, rememberProse, expandQuoteMarks,
-} from '../lib/host-v7.js'
+} from '../lib/host-v8.js'
 import { loadClient } from './helpers/load-client.mjs'
 
 /**
@@ -21,6 +21,7 @@ test('跨端契约：投影 key 与引用标记格式，两端常量一致', () 
   assert.equal(client.PROJECTION_KEY, PROJECTION_KEY, '投影 key 必须两端同名')
   assert.equal(client.QUOTE_MARK_PREFIX, QUOTE_MARK_PREFIX, '引用标记前缀必须两端一致')
   assert.equal(client.QUOTE_MARK_ID_LENGTH, QUOTE_MARK_ID_LENGTH, '标记里的 id 长度必须两端一致')
+  assert.equal(client.QUICK_ACTIONS_KEY, QUICK_ACTIONS_KEY, '快捷按钮条的投影 key 必须两端同名')
 })
 
 test('跨端契约：宿主投影单元用的是同一个 key 与状态版本', () => {
