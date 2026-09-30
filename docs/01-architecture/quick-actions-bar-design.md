@@ -30,17 +30,19 @@
 
 | 项 | 实测值 |
 |---|---|
-| 注册槽位 | `conversation.input.dock`（list，session scope；**必须带 `locale`**，见 AGENTS.md） |
+| 注册槽位 | `conversation.session.header.utilities`（list，session scope；**必须 `locale: null`**，见 AGENTS.md） |
 | 该槽 standard props | 含 `inputActions`、`useInput`、`useProjection`、`useChat`、`sessionId` |
-| 同槽其他占用者 | `todo`(0) · `goal`(10) · `queue`(20)（我们的元素是 fixed，不参与排布） |
+| 同槽其他占用者 | `open-in-app`(-10) · `schedule-catalog`(-5) · `session-log-download`(0)（我们的元素是 fixed，不参与排布） |
 | 定位依据 | `document.querySelector('[class*="_sidebarCol"]').getBoundingClientRect().right` |
 | 跟随 | `ResizeObserver`（侧栏折叠/拖动改宽）+ `window resize`，回调里**直接改 `style.left`** |
 
 ### 三个实机踩出来的坑（都在 2026-09-30）
 
-1. **注册在 composer 下会被问卷带走**。`conversation.composer` 是 `chain` 型槽：交互式问卷、
-   审批、计划复核出现时，整个 composer 被替换，挂在其下的 `conversation.input.dock` 条目
-   一并卸载 —— 表现为「问卷一弹出来，竖条就消失」。所以注册点选**会话头部**（常驻）。
+1. **挂在内容区会被问卷带走**。`conversation.input.dock` 由 `conversation.content` 声明，
+   交互式问卷/审批出现时内容区被整体替换，它跟着卸载 —— 表现为「问卷一弹出来，竖条就消失」，
+   而这恰恰让人没法对着界面检查配置。所以注册点选**会话头部**
+   `conversation.session.header.utilities`（整个会话常驻）。元素是 `position: fixed`，
+   挂哪个槽都不影响视觉位置，**常驻性是选槽的首要标准**。
 2. **位置不能用 React state 存**。拖动侧栏时每次宽度变化都要在同一帧落到 `left` 上；
    `setState → 重渲染` 天然慢半拍，表现为"跟随不同步"。改为在 `ResizeObserver` 回调里直接
    写 `style.left`（该回调在布局后、绘制前，同帧重排）。

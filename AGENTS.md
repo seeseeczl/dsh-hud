@@ -239,3 +239,9 @@ registerSlotCell(ctx, name, id, order, component) -> disposer | null
 **`settings.describe()` 的返回值是两层包装**：`{ ok, value: { writable, hasDocument,
 namespaces: [...] } }`，且 descriptor 里的 `schema` 是 schemastery 内部形式（`uid`/`refs`），
 不是 JSON Schema —— 想按结构识别自己的配置项会失败，按 `ns` 认更可靠。
+
+**选槽先看"会不会被替换掉"**：`conversation.input.dock` 挂在 `conversation.content` 下，
+交互问卷 / 审批把内容区整体替换时它跟着被卸载 —— 界面表现是"弹窗一出来，常驻 UI 就没了"。
+常驻 UI 要挂会话头部这类槽（`conversation.session.header.utilities`）。
+元素本身是 `position: fixed` 时，挂哪个槽都不影响视觉位置，所以**常驻性是选槽的首要标准**，
+不是位置。
