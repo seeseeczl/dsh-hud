@@ -280,3 +280,12 @@ test('设置页：describe 返回 { ok, value } 包装时也能取出 descriptor
   assert.deepEqual(quickDescriptorsOf({ value: [unit] }), [unit])
   assert.deepEqual(quickDescriptorsOf({ data: [unit] }), [unit])
 })
+
+test('设置页：describe 的两层包装（ok → value → namespaces）也能取到', () => {
+  const { quickDescriptorsOf, findQuickActionsDescriptor } = loadClient()
+  const unit = { ns: 'sym-cost', revision: 1, schema: { uid: 1, refs: {} }, value: {} }
+  const wrapped = { ok: true, value: { writable: true, hasDocument: true, namespaces: [unit] } }
+  assert.deepEqual(quickDescriptorsOf(wrapped), [unit])
+  assert.equal(findQuickActionsDescriptor(quickDescriptorsOf(wrapped)).ns, 'sym-cost',
+    'schema 是 schemastery 形式（uid/refs），认不出结构时要靠 ns 兜底')
+})
