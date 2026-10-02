@@ -221,6 +221,19 @@ registerSlotCell(ctx, name, id, order, component, extra?) -> disposer | null
 界面表现是**什么都不发生且没有任何报错**。`sessionCost` 之所以没暴露这个问题，是因为它
 每轮都在变。守卫见 `test/host.test.mjs` 的「state 在首个事件后只变一次」。
 
+**计费数据的到达时机（2026-10-02 查 asar 确认，别再重复投入）**：宿主 `sessionCost` 只认三个
+事件 —— `request/header`（只记 model/provider）、`llm/retry-started`（清掉待结算的临时记录）、
+**`assistant/message`（唯一累加 `requests` 与 token 桶的地方，它带 `usage`）**。
+`assistant/chunk` 的 payload 里**没有** usage（asar 55364143 的 `streamChunkValue` 枚举了全部
+分片类型：block-start / text-delta / reasoning-delta / tool-call-delta / block-end）；官方的
+`tokenUsage` 投影也只认 `assistant/message` / `assistant/attempt`（asar 59325826，注释写明
+「the last usage sample embedded in its stream」）。
+→ **新会话第一轮在结算前算不出金额**，这是数据层面的必然。也别用输出 delta 估算：
+实测 cacheHit 占 token 的 99.3%、output 只占 0.55%，估出来只有真实值的零头。
+→ 相关约定：计费为 0 不等于「没有会话」，所以 `CostPill` 里「还没结算」只能关掉花费那一半，
+不能把整格 return 掉（内存读数与结算无关）。另：这个组件的 `useDisplayOptions()` 一度排在
+条件 return 之后 —— **槽组件里所有 hook 必须在任何 return 之前**。
+
 **槽的 `locale` 声明只决定"给不给条目注入 `t`"，不控制渲染（2026-09-30 查 asar 更正）**：
 
 - 官方 slots 渲染侧的原话（asar 偏移 22565236）：

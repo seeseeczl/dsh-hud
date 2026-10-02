@@ -10,6 +10,26 @@
 - 每个版本的说明与对应 GitHub Release 的说明**保持一致**
 - 已发布的版本条目**不再改写**；更正以新版本的形式给出
 
+## [未发布]
+
+### 修复
+
+- **新会话第一个任务进行中，整行读数不再消失**：`CostPill` 原先在 `!(view.requests > 0)` 时
+  **整格 `return null`**，而宿主只在 `assistant/message`（一次调用结算、带 `usage`）时才累加
+  请求数与 token 桶 —— 于是新会话第一轮在结算之前，连**内存读数**都一起消失，看起来像整个
+  读数坏了。现在只把「花费」这一半置空，内存读数独立判断、照常显示；没有花费数据时也不再
+  给它套可点击的账单面板包装（内存本来就是不可点的普通读数）。
+  - 金额在进行中仍然不会出现，这是数据层面的必然：`assistant/chunk` 的分片里**没有** usage
+    字段，官方 `tokenUsage` 投影同样只认 `assistant/message` / `assistant/attempt`。
+  - 也不用输出 delta 估算：本会话实测 cacheHit 占 token 的 99.3%、output 仅 0.55%，
+    估算出来的金额只有真实值的零头。
+- **`CostPill` 的条件 hook**：`useDisplayOptions()` 原排在 `return null` 之后，第一轮从
+  「未结算」走到「已结算」时 hook 数量会从 2 变 4，属条件 hook 违规。已提到所有 return 之前。
+- **竖条在浅色主题下的底色**：背景原为 `color-mix(in srgb, var(--dsw-specific-menu) 82%, black)`
+  （当初为深色主题「压暗 18%」而写），浅色主题下会把近白的菜单底压成脏灰。改为官方弹层配方：
+  `background: var(--dsw-specific-menu)` + `--dsw-elevation-stroke-color: var(--dsw-alias-border-l1)`
+  —— 浅色下靠那圈描边定边界，而不是靠压暗。
+
 ## [1.3.0] - 2026-10-01
 
 ### 变更
