@@ -142,6 +142,9 @@
   改挂 `conversation.input.right`（模型选择器正左边）并删掉那条重排官方侧栏 footer 的静态规则；
   版本引用按上面同一份清单同步（`package.json` / `README.md` / `PUBLISHING.md` /
   `docs/01-architecture` / `openspec/project.md`）。
+  **2026-10-02 修复发布（1.3.1）**：`CHANGELOG.md` 新增 `[1.3.1]`（修复两段）—— 计费组件
+  `CostPill` 在新会话第一轮进行中不再连坐内存读数（并修掉一个条件 hook），竖条背景改回官方
+  弹层配方以适配浅色主题；版本引用按上面同一份清单同步。
 
 ### T-07 节假日表外置与年度更新路径
 
